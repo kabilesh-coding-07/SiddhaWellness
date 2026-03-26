@@ -1,0 +1,62 @@
+﻿
+> frontend@0.1.0 build
+> next build
+
+Ôû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+node.exe : 
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (:String) [],    
+ RemoteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+> Build error occurred
+Error: Turbopack build 
+failed with 1 errors:
+./src/app/doctor/blogs/
+edit/[id]/page.tsx:1:4
+Parsing ecmascript 
+source code failed
+[0m[31m[1m>[22m[39
+m[90m 1 |[39m nn 
+j[32m'use 
+client'[39m[33m;[39m
+ [90m   |[39m    
+[31m[1m^[22m[39m
+ [90m 2 |[39m
+ [90m 3 |[39m 
+[36mimport[39m { 
+useState[33m,[39m 
+useEffect } 
+[36mfrom[39m [32m're
+act'[39m[33m;[39m
+ [90m 4 |[39m 
+[36mimport[39m { 
+useRouter[33m,[39m 
+useParams } 
+[36mfrom[39m [32m'ne
+xt/navigation'[39m[33
+m;[39m[0m
+
+Expected ';', '}' or 
+<eof>
+
+
+    at <unknown> (./src
+/app/doctor/blogs/edit/
+[id]/page.tsx:1:4)

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/i18n';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -16,6 +17,7 @@ interface Patient {
 }
 
 export default function PatientsPage() {
+    const { t } = useLanguage();
     const [search, setSearch] = useState('');
     const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
     const [patients, setPatients] = useState<Patient[]>([]);
@@ -66,12 +68,12 @@ export default function PatientsPage() {
 
     return (
         <div>
-            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">Patient Records</h1>
-            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>View patient details, medical history, and treatment notes.</p>
+            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">{t('doctor.patientRecords')}</h1>
+            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>{t('doctor.patientRecordsDesc')}</p>
 
             {/* Search */}
             <div className="mb-6">
-                <input type="text" className="form-input max-w-md" placeholder="🔍 Search patients by name or condition..."
+                <input type="text" className="form-input max-w-md" placeholder={t('doctor.searchPatients')}
                     value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
 
@@ -82,7 +84,7 @@ export default function PatientsPage() {
                         <div className="text-center py-8">
                             <span className="text-4xl block mb-3">👥</span>
                             <p className="text-sm" style={{ color: '#6b8f7e' }}>
-                                {patients.length === 0 ? 'No patients yet. They will appear here after booking appointments.' : 'No matching patients'}
+                                {patients.length === 0 ? t('doctor.noPatientsYet') : t('doctor.noMatching')}
                             </p>
                         </div>
                     )}
@@ -124,9 +126,9 @@ export default function PatientsPage() {
 
                             <div className="grid sm:grid-cols-3 gap-4 mb-6">
                                 {[
-                                    { label: 'Email', value: selectedPatient.email, icon: '✉️' },
-                                    { label: 'Phone', value: selectedPatient.phone || '—', icon: '📞' },
-                                    { label: 'Last Visit', value: new Date(selectedPatient.lastVisit).toLocaleDateString(), icon: '📅' },
+                                    { label: t('profile.email'), value: selectedPatient.email, icon: '✉️' },
+                                    { label: t('profile.phone'), value: selectedPatient.phone || '—', icon: '📞' },
+                                    { label: t('doctor.lastVisit'), value: new Date(selectedPatient.lastVisit).toLocaleDateString(), icon: '📅' },
                                 ].map((item) => (
                                     <div key={item.label} className="p-3 rounded-lg" style={{ background: 'rgba(4,120,87,0.05)' }}>
                                         <p className="text-xs mb-1" style={{ color: '#6b8f7e' }}>{item.icon} {item.label}</p>
@@ -138,13 +140,13 @@ export default function PatientsPage() {
                             <div className="flex gap-4 mb-6">
                                 <div className="text-center p-4 rounded-lg flex-1" style={{ background: 'rgba(4,120,87,0.08)' }}>
                                     <p className="text-2xl font-bold" style={{ color: '#34d399' }}>{selectedPatient.totalVisits}</p>
-                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>Total Visits</p>
+                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>{t('doctor.totalVisitsCard')}</p>
                                 </div>
                             </div>
 
                             {selectedPatient.medicalHistory && (
                                 <div className="mb-6">
-                                    <h3 className="font-semibold mb-3" style={{ color: '#34d399' }}>Medical History</h3>
+                                    <h3 className="font-semibold mb-3" style={{ color: '#34d399' }}>{t('profile.medicalHistory')}</h3>
                                     <div className="p-4 rounded-lg" style={{ background: 'rgba(4,120,87,0.05)', border: '1px solid rgba(4,120,87,0.1)' }}>
                                         <p className="text-sm leading-relaxed" style={{ color: '#a7c4b8' }}>{selectedPatient.medicalHistory}</p>
                                     </div>
@@ -152,16 +154,16 @@ export default function PatientsPage() {
                             )}
 
                             <div>
-                                <h3 className="font-semibold mb-3" style={{ color: '#34d399' }}>Treatment Notes</h3>
-                                <textarea className="form-input" rows={4} placeholder="Add treatment notes, prescriptions, or follow-up instructions..." />
-                                <button className="btn-primary mt-3 text-sm">Save Notes</button>
+                                <h3 className="font-semibold mb-3" style={{ color: '#34d399' }}>{t('doctor.treatmentNotes')}</h3>
+                                <textarea className="form-input" rows={4} placeholder={t('doctor.treatmentPlaceholder')} />
+                                <button className="btn-primary mt-3 text-sm">{t('doctor.saveNotes')}</button>
                             </div>
                         </div>
                     ) : (
                         <div className="glass-card p-12 text-center">
                             <span className="text-5xl mb-4 block">👥</span>
-                            <p className="text-lg font-semibold mb-2" style={{ color: '#a7c4b8' }}>Select a patient</p>
-                            <p className="text-sm" style={{ color: '#6b8f7e' }}>Click on a patient from the list to view their details.</p>
+                            <p className="text-lg font-semibold mb-2" style={{ color: '#a7c4b8' }}>{t('doctor.selectPatient')}</p>
+                            <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('doctor.selectPatientDesc')}</p>
                         </div>
                     )}
                 </div>

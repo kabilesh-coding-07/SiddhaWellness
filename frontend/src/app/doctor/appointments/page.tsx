@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/i18n';
 
 interface Appointment {
     id: string;
@@ -13,6 +14,7 @@ interface Appointment {
 }
 
 export default function DoctorAppointmentsPage() {
+    const { t } = useLanguage();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filter, setFilter] = useState('ALL');
     const [noteModal, setNoteModal] = useState<string | null>(null);
@@ -69,8 +71,8 @@ export default function DoctorAppointmentsPage() {
 
     return (
         <div>
-            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">Manage Appointments</h1>
-            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>Accept, reject, or reschedule patient appointments.</p>
+            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">{t('doctor.manageAppointments')}</h1>
+            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>{t('doctor.manageAppointmentsDesc')}</p>
 
             {/* Filters */}
             <div className="flex flex-wrap gap-2 mb-6">
@@ -110,12 +112,12 @@ export default function DoctorAppointmentsPage() {
                                         <button onClick={() => updateStatus(apt.id, 'CONFIRMED')}
                                             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                             style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
-                                            ✓ Accept
+                                            {t('doctor.accept')}
                                         </button>
                                         <button onClick={() => updateStatus(apt.id, 'REJECTED')}
                                             className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                             style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
-                                            ✗ Reject
+                                            {t('doctor.reject')}
                                         </button>
                                     </>
                                 )}
@@ -123,26 +125,26 @@ export default function DoctorAppointmentsPage() {
                                     <button onClick={() => updateStatus(apt.id, 'COMPLETED')}
                                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                         style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}>
-                                        Mark Complete
+                                        {t('doctor.markComplete')}
                                     </button>
                                 )}
                                 <button onClick={() => { setNoteModal(apt.id); setNoteText(apt.notes || ''); }}
                                     className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                     style={{ background: 'rgba(4,120,87,0.1)', color: '#34d399', border: '1px solid rgba(4,120,87,0.2)' }}>
-                                    📝 Notes
+                                    {t('doctor.notesBtn')}
                                 </button>
                             </div>
                         </div>
 
                         {apt.symptoms && (
                             <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(4,120,87,0.1)' }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: '#6b8f7e' }}>Symptoms:</p>
+                                <p className="text-xs font-medium mb-1" style={{ color: '#6b8f7e' }}>{t('appointments.symptoms')}</p>
                                 <p className="text-sm" style={{ color: '#a7c4b8' }}>{apt.symptoms}</p>
                             </div>
                         )}
                         {apt.notes && (
                             <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(4,120,87,0.08)' }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: '#34d399' }}>Your Notes:</p>
+                                <p className="text-xs font-medium mb-1" style={{ color: '#34d399' }}>{t('doctor.yourNotes')}</p>
                                 <p className="text-sm" style={{ color: '#a7c4b8' }}>{apt.notes}</p>
                             </div>
                         )}
@@ -155,13 +157,13 @@ export default function DoctorAppointmentsPage() {
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setNoteModal(null)}>
                     <div className="glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}
                         style={{ background: '#111a16', border: '1px solid rgba(4,120,87,0.3)' }}>
-                        <h3 className="text-xl font-semibold mb-4" style={{ color: '#f0fdf4' }}>Patient Notes</h3>
+                        <h3 className="text-xl font-semibold mb-4" style={{ color: '#f0fdf4' }}>{t('doctor.patientNotes')}</h3>
                         <textarea className="form-input mb-4" rows={5}
-                            placeholder="Add notes about diagnosis, treatment plan, follow-up..."
+                            placeholder={t('doctor.notesPlaceholder')}
                             value={noteText} onChange={(e) => setNoteText(e.target.value)} />
                         <div className="flex gap-3 justify-end">
-                            <button onClick={() => setNoteModal(null)} className="btn-secondary text-sm py-2 px-4">Cancel</button>
-                            <button onClick={() => saveNote(noteModal)} className="btn-primary text-sm py-2 px-4">Save Notes</button>
+                            <button onClick={() => setNoteModal(null)} className="btn-secondary text-sm py-2 px-4">{t('common.cancel')}</button>
+                            <button onClick={() => saveNote(noteModal)} className="btn-primary text-sm py-2 px-4">{t('doctor.saveNotes')}</button>
                         </div>
                     </div>
                 </div>

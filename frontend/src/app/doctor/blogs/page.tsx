@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/i18n';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -16,6 +17,7 @@ interface Blog {
 }
 
 export default function DoctorBlogsPage() {
+    const { t } = useLanguage();
     const [blogs, setBlogs] = useState<Blog[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -64,27 +66,27 @@ export default function DoctorBlogsPage() {
         <div>
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="font-playfair text-3xl font-bold gradient-text">Blog Management</h1>
-                    <p className="text-sm mt-1" style={{ color: '#6b8f7e' }}>Create, edit, and publish health articles.</p>
+                    <h1 className="font-playfair text-3xl font-bold gradient-text">{t('doctor.blogManagement')}</h1>
+                    <p className="text-sm mt-1" style={{ color: '#6b8f7e' }}>{t('doctor.blogManagementDesc')}</p>
                 </div>
                 <Link href="/doctor/blogs/create"
                     className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
                     style={{ background: 'linear-gradient(135deg, #047857, #065f46)', color: '#f0fdf4' }}>
-                    ✍️ New Post
+                    {t('doctor.newPost')}
                 </Link>
             </div>
 
             {loading ? (
                 <div className="text-center py-20">
                     <span className="text-4xl block mb-4 animate-float">📝</span>
-                    <p style={{ color: '#6b8f7e' }}>Loading your posts...</p>
+                    <p style={{ color: '#6b8f7e' }}>{t('common.loading')}</p>
                 </div>
             ) : blogs.length === 0 ? (
                 <div className="glass-card p-12 text-center">
                     <span className="text-6xl block mb-4">📝</span>
-                    <h3 className="text-xl font-semibold mb-2" style={{ color: '#f0fdf4' }}>No Blog Posts Yet</h3>
-                    <p className="text-sm mb-6" style={{ color: '#6b8f7e' }}>Share your medical knowledge with patients by creating your first blog post.</p>
-                    <Link href="/doctor/blogs/create" className="btn-primary">Create Your First Post →</Link>
+                    <h3 className="text-xl font-semibold mb-2" style={{ color: '#f0fdf4' }}>{t('doctor.noPosts')}</h3>
+                    <p className="text-sm mb-6" style={{ color: '#6b8f7e' }}>{t('doctor.noPostsDesc')}</p>
+                    <Link href="/doctor/blogs/create" className="btn-primary">{t('doctor.createPost')}</Link>
                 </div>
             ) : (
                 <div className="space-y-4">
@@ -100,7 +102,7 @@ export default function DoctorBlogsPage() {
                                                 color: blog.published ? '#22c55e' : '#eab308',
                                                 border: `1px solid ${blog.published ? 'rgba(34,197,94,0.3)' : 'rgba(234,179,8,0.3)'}`,
                                             }}>
-                                            {blog.published ? 'Published' : 'Draft'}
+                                            {blog.published ? t('doctor.published') : t('doctor.draft')}
                                         </span>
                                     </div>
                                     {blog.excerpt && (
@@ -109,7 +111,7 @@ export default function DoctorBlogsPage() {
                                         </p>
                                     )}
                                     <p className="text-xs" style={{ color: '#6b8f7e' }}>
-                                        Last updated: {new Date(blog.updatedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        {t('doctor.lastUpdated')} {new Date(blog.updatedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -120,17 +122,17 @@ export default function DoctorBlogsPage() {
                                             color: blog.published ? '#eab308' : '#22c55e',
                                             border: `1px solid ${blog.published ? 'rgba(234,179,8,0.3)' : 'rgba(34,197,94,0.3)'}`,
                                         }}>
-                                        {blog.published ? '📥 Unpublish' : '📤 Publish'}
+                                        {blog.published ? t('doctor.unpublish') : t('doctor.publish')}
                                     </button>
                                     <Link href={`/doctor/blogs/edit/${blog.id}`}
                                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                         style={{ background: 'rgba(4,120,87,0.1)', color: '#34d399', border: '1px solid rgba(4,120,87,0.2)' }}>
-                                        ✏️ Edit
+                                        ✏️ {t('common.edit')}
                                     </Link>
                                     <button onClick={() => deleteBlog(blog.id)}
                                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                         style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
-                                        🗑️ Delete
+                                        🗑️ {t('common.delete')}
                                     </button>
                                 </div>
                             </div>

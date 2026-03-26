@@ -15,12 +15,12 @@ interface Doctor {
 }
 
 const staticDoctors = [
-    { id: '1', name: 'Dr. Kavitha Rajan', specialty: 'Varmam & Pain Management', exp: 18, bio: 'Renowned Varmam specialist with 18 years of experience.', img: '👩‍⚕️' },
-    { id: '2', name: 'Dr. Senthil Kumar', specialty: 'Herbal Medicine & Internal Medicine', exp: 22, bio: '22 years in Siddha herbal medicine.', img: '👨‍⚕️' },
-    { id: '3', name: 'Dr. Priya Lakshmi', specialty: "Women's Health & Fertility", exp: 15, bio: "Specialist in women's health.", img: '👩‍⚕️' },
-    { id: '4', name: 'Dr. Arjun Selvam', specialty: 'Detox & Rejuvenation', exp: 12, bio: 'Expert in Panchakarma and Kayakalpa therapies.', img: '👨‍⚕️' },
-    { id: '5', name: 'Dr. Meera Thangaraj', specialty: 'Pediatric Siddha Medicine', exp: 14, bio: 'Gentle healing for children.', img: '👩‍⚕️' },
-    { id: '6', name: 'Dr. Vijay Anand', specialty: 'Joint & Bone Disorders', exp: 16, bio: 'Specialist in musculoskeletal disorders.', img: '👨‍⚕️' },
+    { id: '1', docKey: 'd1', exp: 18, img: '👩‍⚕️' },
+    { id: '2', docKey: 'd2', exp: 22, img: '👨‍⚕️' },
+    { id: '3', docKey: 'd3', exp: 15, img: '👩‍⚕️' },
+    { id: '4', docKey: 'd4', exp: 12, img: '👨‍⚕️' },
+    { id: '5', docKey: 'd5', exp: 14, img: '👩‍⚕️' },
+    { id: '6', docKey: 'd6', exp: 16, img: '👨‍⚕️' },
 ];
 
 export default function DoctorsPage() {
@@ -70,10 +70,10 @@ export default function DoctorsPage() {
                                     style={{ background: 'rgba(4,120,87,0.15)', border: '2px solid rgba(4,120,87,0.3)' }}>
                                     {d.img}
                                 </div>
-                                <h3 className="text-xl font-semibold mb-1" style={{ color: '#f0fdf4' }}>{d.name}</h3>
-                                <p className="text-sm font-medium mb-1" style={{ color: '#34d399' }}>{d.specialty}</p>
+                                <h3 className="text-xl font-semibold mb-1" style={{ color: '#f0fdf4' }}>{t(`doctorList.names.${d.docKey}`)}</h3>
+                                <p className="text-sm font-medium mb-1" style={{ color: '#34d399' }}>{t(`doctorList.specialties.${d.docKey}`)}</p>
                                 <p className="text-xs mb-4" style={{ color: '#6b8f7e' }}>{d.exp} {t('common.yearsExp')}</p>
-                                <p className="text-sm leading-relaxed mb-5" style={{ color: '#a7c4b8' }}>{d.bio}</p>
+                                <p className="text-sm leading-relaxed mb-5" style={{ color: '#a7c4b8' }}>{t(`doctorList.bios.${d.docKey}`)}</p>
                                 <span className="btn-primary text-sm py-2 px-6">{t('common.viewProfile')}</span>
                             </Link>
                         ))}

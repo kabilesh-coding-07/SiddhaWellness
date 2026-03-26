@@ -252,6 +252,47 @@ const en = {
         unpublish: '📥 Unpublish',
         published: 'Published',
         draft: 'Draft',
+        
+        // Added missing keys
+        goodDay: 'Good day,',
+        scheduleOverview: "Here's your schedule overview for today.",
+        todayAppointments: "Today's Appointments",
+        pendingReview: 'Pending Review',
+        completed: 'Completed',
+        totalAppointments: 'Total Appointments',
+        manageAppointments: 'Manage Appointments',
+        manageDesc: 'Accept, reject or reschedule',
+        manageAppointmentsDesc: 'Accept, reject, or reschedule patient appointments.',
+        patientRecords: 'Patient Records',
+        recordsDesc: 'View patient details & notes',
+        patientRecordsDesc: 'View patient details, medical history, and treatment notes.',
+        setAvailability: 'Set Availability',
+        availabilityDesc: 'Update your schedule',
+        setAvailabilityDesc: 'Configure your weekly schedule and consultation hours.',
+        accept: '✓ Accept',
+        reject: '✗ Reject',
+        markComplete: 'Mark Complete',
+        notesBtn: '📝 Notes',
+        yourNotes: 'Your Notes:',
+        patientNotes: 'Patient Notes',
+        notesPlaceholder: 'Add notes about diagnosis, treatment plan, follow-up...',
+        saveNotes: 'Save Notes',
+        searchPatients: '🔍 Search patients by name or condition...',
+        noPatientsYet: 'No patients yet. They will appear here after booking appointments.',
+        noMatching: 'No matching patients',
+        lastVisit: 'Last Visit',
+        totalVisitsCard: 'Total Visits',
+        treatmentNotes: 'Treatment Notes',
+        treatmentPlaceholder: 'Add treatment notes, prescriptions, or follow-up instructions...',
+        selectPatient: 'Select a patient',
+        selectPatientDesc: 'Click on a patient from the list to view their details.',
+        availabilitySaved: '✅ Availability saved successfully!',
+        consultDuration: 'Consultation Duration',
+        weeklySchedule: 'Weekly Schedule',
+        addSlot: '+ Add Slot',
+        saveAvailability: '✨ Save Availability',
+        blogManagementDesc: 'Create, edit, and publish health articles.',
+        lastUpdated: 'Last updated: ',
     },
 
     // Footer
@@ -263,6 +304,62 @@ const en = {
         rights: '© 2026 SiddhaWellness.in. All rights reserved.',
         madeWith: 'Made with 🌿 in Tamil Nadu',
     },
+    
+    // Timeline
+    timeline: {
+        t2018: 'SiddhaWellness founded in Chennai with 2 doctors',
+        t2020: 'Expanded to 4 specialist doctors, launched online consultations',
+        t2022: 'Treated 10,000+ patients, introduced Varmam specialty',
+        t2024: 'Opened second branch, started research collaborations',
+        t2026: 'Launched SiddhaWellness.in — digital health platform',
+    },
+
+    // Doctor Fallbacks
+    doctorList: {
+        names: {
+            d1: 'Dr. Kavitha Rajan',
+            d2: 'Dr. Senthil Kumar',
+            d3: 'Dr. Priya Lakshmi',
+            d4: 'Dr. Arjun Selvam',
+            d5: 'Dr. Meera Thangaraj',
+            d6: 'Dr. Vijay Anand',
+        },
+        specialties: {
+            d1: 'Varmam & Pain Management',
+            d2: 'Herbal Medicine & Internal Medicine',
+            d3: "Women's Health & Fertility",
+            d4: 'Detox & Rejuvenation',
+            d5: 'Pediatric Siddha Medicine',
+            d6: 'Joint & Bone Disorders',
+        },
+        bios: {
+            d1: 'Renowned Varmam specialist with 18 years of experience.',
+            d2: '22 years in Siddha herbal medicine.',
+            d3: "Specialist in women's health.",
+            d4: 'Expert in Panchakarma and Kayakalpa therapies.',
+            d5: 'Gentle healing for children.',
+            d6: 'Specialist in musculoskeletal disorders.',
+        }
+    },
+
+    // Blog Fallbacks
+    blogList: {
+        categories: {
+            edu: 'Education',
+            nutri: 'Nutrition',
+            treat: 'Treatments',
+        },
+        titles: {
+            b1: 'Understanding Siddha Medicine: A Complete Guide',
+            b2: '5 Medicinal Herbs Every Kitchen Should Have',
+            b3: 'Varmam Therapy: Healing Through 108 Vital Points',
+        },
+        excerpts: {
+            b1: 'Discover the ancient Tamil medical system developed by 18 Siddhars that has been healing people for over 5000 years.',
+            b2: 'These common herbs used in Siddha medicine can boost immunity, improve digestion, and enhance overall wellbeing.',
+            b3: 'Learn how this powerful Siddha technique uses precise pressure on 108 vital energy points to heal chronic pain.',
+        }
+    }
 };
 
 export default en;

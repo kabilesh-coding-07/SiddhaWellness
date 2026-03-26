@@ -15,9 +15,9 @@ interface Blog {
 }
 
 const staticBlogs = [
-    { slug: 'understanding-siddha-medicine', title: 'Understanding Siddha Medicine: A Complete Guide', excerpt: 'Discover the ancient Tamil medical system developed by 18 Siddhars that has been healing people for over 5000 years.', date: 'Feb 20, 2026', category: 'Education' },
-    { slug: '5-herbs-for-kitchen', title: '5 Medicinal Herbs Every Kitchen Should Have', excerpt: 'These common herbs used in Siddha medicine can boost immunity, improve digestion, and enhance overall wellbeing.', date: 'Feb 15, 2026', category: 'Nutrition' },
-    { slug: 'varmam-therapy-guide', title: 'Varmam Therapy: Healing Through 108 Vital Points', excerpt: 'Learn how this powerful Siddha technique uses precise pressure on 108 vital energy points to heal chronic pain.', date: 'Feb 10, 2026', category: 'Treatments' },
+    { slug: 'understanding-siddha-medicine', titleKey: 'b1', date: 'Feb 20, 2026', categoryKey: 'edu' },
+    { slug: '5-herbs-for-kitchen', titleKey: 'b2', date: 'Feb 15, 2026', categoryKey: 'nutri' },
+    { slug: 'varmam-therapy-guide', titleKey: 'b3', date: 'Feb 10, 2026', categoryKey: 'treat' },
 ];
 
 export default function BlogPage() {
@@ -70,13 +70,13 @@ export default function BlogPage() {
                                     style={{ background: 'linear-gradient(135deg, rgba(4,120,87,0.2), rgba(212,160,23,0.1))' }}>
                                     <span className="text-6xl group-hover:scale-110 transition-transform">📰</span>
                                     <span className="absolute top-4 left-4 text-xs px-3 py-1 rounded-full font-medium"
-                                        style={{ background: 'rgba(4,120,87,0.3)', color: '#34d399' }}>{b.category}</span>
+                                        style={{ background: 'rgba(4,120,87,0.3)', color: '#34d399' }}>{t(`blogList.categories.${b.categoryKey}`)}</span>
                                 </div>
                                 <div className="p-6 flex-1 flex flex-col">
                                     <p className="text-xs mb-2" style={{ color: '#6b8f7e' }}>{b.date}</p>
                                     <h3 className="text-lg font-semibold mb-3 group-hover:text-emerald-400 transition-colors"
-                                        style={{ color: '#f0fdf4' }}>{b.title}</h3>
-                                    <p className="text-sm flex-1" style={{ color: '#a7c4b8' }}>{b.excerpt}</p>
+                                        style={{ color: '#f0fdf4' }}>{t(`blogList.titles.${b.titleKey}`)}</h3>
+                                    <p className="text-sm flex-1" style={{ color: '#a7c4b8' }}>{t(`blogList.excerpts.${b.titleKey}`)}</p>
                                     <span className="text-sm font-semibold mt-4 inline-block" style={{ color: '#34d399' }}>{t('common.readMore')}</span>
                                 </div>
                             </Link>

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '@/i18n';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
@@ -19,6 +20,7 @@ const timeSlots = [
 
 export default function BookAppointmentPage() {
     const router = useRouter();
+    const { t } = useLanguage();
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [form, setForm] = useState({ doctorId: '', date: '', time: '', symptoms: '' });
     const [loading, setLoading] = useState(false);
@@ -64,16 +66,16 @@ export default function BookAppointmentPage() {
         return (
             <div className="text-center py-20">
                 <span className="text-6xl mb-6 block animate-float">✅</span>
-                <h2 className="font-playfair text-3xl font-bold gradient-text mb-3">Appointment Booked!</h2>
-                <p style={{ color: '#a7c4b8' }}>Your appointment has been submitted. You&apos;ll receive a confirmation shortly.</p>
+                <h2 className="font-playfair text-3xl font-bold gradient-text mb-3">{t('book.booked')}</h2>
+                <p style={{ color: '#a7c4b8' }}>{t('book.bookedDesc')}</p>
             </div>
         );
     }
 
     return (
         <div>
-            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">Book Appointment</h1>
-            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>Schedule a consultation with our expert Siddha physicians.</p>
+            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">{t('book.title')}</h1>
+            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>{t('book.subtitle')}</p>
 
             <div className="max-w-2xl">
                 {error && (
@@ -85,9 +87,9 @@ export default function BookAppointmentPage() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Select Doctor */}
                     <div className="glass-card p-6">
-                        <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>1. Choose Your Doctor</h3>
+                        <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>{t('book.chooseDoctor')}</h3>
                         {doctors.length === 0 ? (
-                            <p className="text-sm" style={{ color: '#6b8f7e' }}>Loading doctors...</p>
+                            <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('book.loadingDoctors')}</p>
                         ) : (
                             <div className="grid sm:grid-cols-2 gap-3">
                                 {doctors.map((doc) => (
@@ -109,15 +111,15 @@ export default function BookAppointmentPage() {
 
                     {/* Date & Time */}
                     <div className="glass-card p-6">
-                        <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>2. Select Date & Time</h3>
+                        <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>{t('book.selectDateTime')}</h3>
                         <div className="mb-4">
-                            <label className="form-label">Preferred Date</label>
+                            <label className="form-label">{t('book.preferredDate')}</label>
                             <input type="date" className="form-input" value={form.date}
                                 onChange={(e) => setForm({ ...form, date: e.target.value })} required
                                 min={new Date().toISOString().split('T')[0]} />
                         </div>
                         <div>
-                            <label className="form-label">Available Time Slots</label>
+                            <label className="form-label">{t('book.availableSlots')}</label>
                             <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                                 {timeSlots.map((slot) => (
                                     <button key={slot} type="button"
@@ -137,15 +139,15 @@ export default function BookAppointmentPage() {
 
                     {/* Symptoms */}
                     <div className="glass-card p-6">
-                        <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>3. Describe Your Symptoms</h3>
+                        <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>{t('book.describeSymptoms')}</h3>
                         <textarea className="form-input" rows={4}
-                            placeholder="Describe your symptoms, health concerns, or reason for visit..."
+                            placeholder={t('book.symptomsPlaceholder')}
                             value={form.symptoms}
                             onChange={(e) => setForm({ ...form, symptoms: e.target.value })} />
                     </div>
 
                     <button type="submit" className="btn-gold w-full justify-center py-4 text-base" disabled={loading}>
-                        {loading ? 'Booking...' : '✨ Confirm Appointment'}
+                        {loading ? t('book.booking') : t('book.confirmBooking')}
                     </button>
                 </form>
             </div>

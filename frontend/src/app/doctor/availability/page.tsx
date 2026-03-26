@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useLanguage } from '@/i18n';
 
 interface TimeSlot {
     start: string;
@@ -24,6 +25,7 @@ const defaultSchedule: DaySchedule[] = [
 ];
 
 export default function AvailabilityPage() {
+    const { t } = useLanguage();
     const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
     const [saved, setSaved] = useState(false);
     const [consultDuration, setConsultDuration] = useState('30');
@@ -93,19 +95,19 @@ export default function AvailabilityPage() {
 
     return (
         <div>
-            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">Set Availability</h1>
-            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>Configure your weekly schedule and consultation hours.</p>
+            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">{t('doctor.setAvailability')}</h1>
+            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>{t('doctor.setAvailabilityDesc')}</p>
 
             {saved && (
                 <div className="mb-6 p-3 rounded-lg text-sm" style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
-                    ✅ Availability saved successfully!
+                    {t('doctor.availabilitySaved')}
                 </div>
             )}
 
             <div className="max-w-3xl space-y-6">
                 {/* Consultation Duration */}
                 <div className="glass-card p-6">
-                    <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>Consultation Duration</h3>
+                    <h3 className="font-semibold mb-4" style={{ color: '#34d399' }}>{t('doctor.consultDuration')}</h3>
                     <div className="flex flex-wrap gap-3">
                         {['15', '30', '45', '60'].map((d) => (
                             <button key={d} onClick={() => setConsultDuration(d)}
@@ -123,7 +125,7 @@ export default function AvailabilityPage() {
 
                 {/* Weekly Schedule */}
                 <div className="glass-card p-6">
-                    <h3 className="font-semibold mb-6" style={{ color: '#34d399' }}>Weekly Schedule</h3>
+                    <h3 className="font-semibold mb-6" style={{ color: '#34d399' }}>{t('doctor.weeklySchedule')}</h3>
                     <div className="space-y-4">
                         {schedule.map((day, di) => (
                             <div key={day.day} className="p-4 rounded-xl" style={{ background: 'rgba(4,120,87,0.03)', border: '1px solid rgba(4,120,87,0.08)' }}>
@@ -140,7 +142,7 @@ export default function AvailabilityPage() {
                                     </div>
                                     {day.enabled && (
                                         <button onClick={() => addSlot(di)} className="text-xs transition-colors hover:text-emerald-300"
-                                            style={{ color: '#34d399' }}>+ Add Slot</button>
+                                            style={{ color: '#34d399' }}>{t('doctor.addSlot')}</button>
                                     )}
                                 </div>
 
@@ -167,7 +169,7 @@ export default function AvailabilityPage() {
                 </div>
 
                 <button onClick={handleSave} className="btn-gold w-full justify-center py-4 text-base">
-                    ✨ Save Availability
+                    {t('doctor.saveAvailability')}
                 </button>
             </div>
         </div>

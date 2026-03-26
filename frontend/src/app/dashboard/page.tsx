@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/i18n';
 
 interface Appointment {
     id: string;
@@ -13,6 +14,7 @@ interface Appointment {
 }
 
 export default function DashboardPage() {
+    const { t } = useLanguage();
     const [user, setUser] = useState<{ name: string } | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
 
@@ -44,17 +46,17 @@ export default function DashboardPage() {
             {/* Welcome */}
             <div className="mb-8">
                 <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>
-                    Welcome back, <span className="gradient-text">{user?.name || 'User'}</span>
+                    {t('dashboard.welcomeBack')} <span className="gradient-text">{user?.name || 'User'}</span>
                 </h1>
-                <p className="text-sm" style={{ color: '#6b8f7e' }}>Manage your healing journey from your personal dashboard.</p>
+                <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('dashboard.manageJourney')}</p>
             </div>
 
             {/* Quick Actions */}
             <div className="grid sm:grid-cols-3 gap-4 mb-10">
                 {[
-                    { icon: '📅', title: 'Book Appointment', desc: 'Schedule your next visit', href: '/dashboard/book', color: '#047857' },
-                    { icon: '📋', title: 'View Appointments', desc: 'Check appointment history', href: '/dashboard/appointments', color: '#0e7490' },
-                    { icon: '👤', title: 'My Profile', desc: 'Update your details', href: '/dashboard/profile', color: '#7c3aed' },
+                    { icon: '📅', title: t('dashboard.bookAppointment'), desc: t('dashboard.scheduleNext'), href: '/dashboard/book', color: '#047857' },
+                    { icon: '📋', title: t('dashboard.viewAppointments'), desc: t('dashboard.checkHistory'), href: '/dashboard/appointments', color: '#0e7490' },
+                    { icon: '👤', title: t('dashboard.myProfile'), desc: t('dashboard.updateDetails'), href: '/dashboard/profile', color: '#7c3aed' },
                 ].map((action) => (
                     <Link key={action.title} href={action.href} className="glass-card p-6 group cursor-pointer">
                         <span className="text-3xl mb-3 block group-hover:scale-110 transition-transform">{action.icon}</span>
@@ -67,18 +69,18 @@ export default function DashboardPage() {
             {/* Upcoming Appointments */}
             <div className="glass-card p-6">
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold" style={{ color: '#f0fdf4' }}>Upcoming Appointments</h2>
+                    <h2 className="text-xl font-semibold" style={{ color: '#f0fdf4' }}>{t('dashboard.upcomingTitle')}</h2>
                     <Link href="/dashboard/appointments" className="text-sm font-medium hover:text-emerald-300" style={{ color: '#34d399' }}>
-                        View All →
+                        {t('dashboard.viewAllLink')}
                     </Link>
                 </div>
 
                 {appointments.length === 0 ? (
                     <div className="text-center py-12">
                         <span className="text-5xl mb-4 block">📅</span>
-                        <p className="text-lg font-semibold mb-2" style={{ color: '#a7c4b8' }}>No appointments yet</p>
-                        <p className="text-sm mb-6" style={{ color: '#6b8f7e' }}>Book your first appointment with our expert Siddha doctors.</p>
-                        <Link href="/dashboard/book" className="btn-primary">Book Now →</Link>
+                        <p className="text-lg font-semibold mb-2" style={{ color: '#a7c4b8' }}>{t('dashboard.noAppointments')}</p>
+                        <p className="text-sm mb-6" style={{ color: '#6b8f7e' }}>{t('dashboard.noAppointmentsDesc')}</p>
+                        <Link href="/dashboard/book" className="btn-primary">{t('common.bookNow')} →</Link>
                     </div>
                 ) : (
                     <div className="space-y-4">

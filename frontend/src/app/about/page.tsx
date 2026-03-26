@@ -61,11 +61,11 @@ export default function AboutPage() {
                     <h2 className="section-title gradient-text text-center mb-12">{t('about.storyTitle')}</h2>
                     <div className="space-y-8">
                         {[
-                            { year: '2018', event: 'SiddhaWellness founded in Chennai with 2 doctors' },
-                            { year: '2020', event: 'Expanded to 4 specialist doctors, launched online consultations' },
-                            { year: '2022', event: 'Treated 10,000+ patients, introduced Varmam specialty' },
-                            { year: '2024', event: 'Opened second branch, started research collaborations' },
-                            { year: '2026', event: 'Launched SiddhaWellness.in — digital health platform' },
+                            { year: '2018', event: t('timeline.t2018') },
+                            { year: '2020', event: t('timeline.t2020') },
+                            { year: '2022', event: t('timeline.t2022') },
+                            { year: '2024', event: t('timeline.t2024') },
+                            { year: '2026', event: t('timeline.t2026') },
                         ].map((item, i) => (
                             <div key={item.year} className="flex gap-6 items-start">
                                 <div className="flex flex-col items-center">

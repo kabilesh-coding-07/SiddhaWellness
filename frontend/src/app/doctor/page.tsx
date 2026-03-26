@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/i18n';
 
 interface Appointment {
     id: string;
@@ -12,6 +13,7 @@ interface Appointment {
 }
 
 export default function DoctorDashboard() {
+    const { t } = useLanguage();
     const [user, setUser] = useState<{ name: string } | null>(null);
     const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
     const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
@@ -47,18 +49,18 @@ export default function DoctorDashboard() {
         <div>
             <div className="mb-8">
                 <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>
-                    Good day, <span className="gradient-text">{user?.name || 'Doctor'}</span>
+                    {t('doctor.goodDay')} <span className="gradient-text">{user?.name || 'Doctor'}</span>
                 </h1>
-                <p className="text-sm" style={{ color: '#6b8f7e' }}>Here&apos;s your schedule overview for today.</p>
+                <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('doctor.scheduleOverview')}</p>
             </div>
 
             {/* Stats */}
             <div className="grid sm:grid-cols-4 gap-4 mb-10">
                 {[
-                    { icon: '📅', label: "Today's Appointments", value: String(todayAppointments.length), color: '#047857' },
-                    { icon: '⏳', label: 'Pending Review', value: String(allAppointments.filter((a) => a.status === 'PENDING').length), color: '#d97706' },
-                    { icon: '✅', label: 'Completed', value: String(allAppointments.filter((a) => a.status === 'COMPLETED').length), color: '#059669' },
-                    { icon: '👥', label: 'Total Appointments', value: String(allAppointments.length), color: '#7c3aed' },
+                    { icon: '📅', label: t('doctor.todayAppointments'), value: String(todayAppointments.length), color: '#047857' },
+                    { icon: '⏳', label: t('doctor.pendingReview'), value: String(allAppointments.filter((a) => a.status === 'PENDING').length), color: '#d97706' },
+                    { icon: '✅', label: t('doctor.completed'), value: String(allAppointments.filter((a) => a.status === 'COMPLETED').length), color: '#059669' },
+                    { icon: '👥', label: t('doctor.totalAppointments'), value: String(allAppointments.length), color: '#7c3aed' },
                 ].map((s) => (
                     <div key={s.label} className="glass-card p-5">
                         <div className="flex items-center gap-3">
@@ -75,9 +77,9 @@ export default function DoctorDashboard() {
             {/* Today's Schedule */}
             <div className="glass-card p-6 mb-8">
                 <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold" style={{ color: '#f0fdf4' }}>Today&apos;s Schedule</h2>
+                    <h2 className="text-xl font-semibold" style={{ color: '#f0fdf4' }}>{t('doctor.todaySchedule')}</h2>
                     <Link href="/doctor/appointments" className="text-sm font-medium hover:text-emerald-300" style={{ color: '#34d399' }}>
-                        View All →
+                        {t('dashboard.viewAllLink')}
                     </Link>
                 </div>
                 <div className="space-y-3">
@@ -109,9 +111,9 @@ export default function DoctorDashboard() {
             {/* Quick Actions */}
             <div className="grid sm:grid-cols-3 gap-4">
                 {[
-                    { icon: '📋', title: 'Manage Appointments', desc: 'Accept, reject or reschedule', href: '/doctor/appointments' },
-                    { icon: '👥', title: 'Patient Records', desc: 'View patient details & notes', href: '/doctor/patients' },
-                    { icon: '🕐', title: 'Set Availability', desc: 'Update your schedule', href: '/doctor/availability' },
+                    { icon: '📋', title: t('doctor.manageAppointments'), desc: t('doctor.manageDesc'), href: '/doctor/appointments' },
+                    { icon: '👥', title: t('doctor.patientRecords'), desc: t('doctor.recordsDesc'), href: '/doctor/patients' },
+                    { icon: '🕐', title: t('doctor.setAvailability'), desc: t('doctor.availabilityDesc'), href: '/doctor/availability' },
                 ].map((action) => (
                     <Link key={action.title} href={action.href} className="glass-card p-6 group">
                         <span className="text-3xl mb-3 block group-hover:scale-110 transition-transform">{action.icon}</span>

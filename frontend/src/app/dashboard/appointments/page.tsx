@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useLanguage } from '@/i18n';
 
 interface Appointment {
     id: string;
@@ -13,6 +14,7 @@ interface Appointment {
 }
 
 export default function AppointmentsPage() {
+    const { t } = useLanguage();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filter, setFilter] = useState('ALL');
 
@@ -50,8 +52,8 @@ export default function AppointmentsPage() {
 
     return (
         <div>
-            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">My Appointments</h1>
-            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>View and manage your appointment history.</p>
+            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">{t('appointments.title')}</h1>
+            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>{t('appointments.subtitle')}</p>
 
             {/* Filters */}
             <div className="flex flex-wrap gap-2 mb-6">
@@ -91,20 +93,20 @@ export default function AppointmentsPage() {
                                     <button onClick={() => cancelAppointment(apt.id)}
                                         className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                                         style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
-                                        Cancel
+                                        {t('appointments.cancelBtn')}
                                     </button>
                                 )}
                             </div>
                         </div>
                         {apt.symptoms && (
                             <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(4,120,87,0.1)' }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: '#6b8f7e' }}>Symptoms:</p>
+                                <p className="text-xs font-medium mb-1" style={{ color: '#6b8f7e' }}>{t('appointments.symptoms')}</p>
                                 <p className="text-sm" style={{ color: '#a7c4b8' }}>{apt.symptoms}</p>
                             </div>
                         )}
                         {apt.notes && (
                             <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(4,120,87,0.08)' }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: '#34d399' }}>Doctor&apos;s Notes:</p>
+                                <p className="text-xs font-medium mb-1" style={{ color: '#34d399' }}>{t('appointments.doctorNotes')}</p>
                                 <p className="text-sm" style={{ color: '#a7c4b8' }}>{apt.notes}</p>
                             </div>
                         )}
