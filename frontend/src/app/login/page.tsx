@@ -37,24 +37,19 @@ export default function LoginPage() {
         setError('');
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(form),
+            const res = await signIn('credentials', {
+                redirect: false,
+                email: form.email,
+                password: form.password,
+                role: mode,
             });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.error || 'Login failed');
 
-            if (mode === 'doctor' && data.user.role !== 'DOCTOR') {
-                throw new Error('This account is not registered as a doctor. Please use "Patient Login".');
+            if (res?.error) {
+                throw new Error(res.error);
             }
-            if (mode === 'patient' && data.user.role === 'DOCTOR') {
-                throw new Error('Doctor account detected. Please use "Doctor Login".');
-            }
-
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            router.push(data.user.role === 'DOCTOR' ? '/doctor' : '/dashboard');
+            
+            // Note: The redirection based on role is now handled by the useEffect above
+            // which watches the NextAuth session object.
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Login failed');
         } finally {

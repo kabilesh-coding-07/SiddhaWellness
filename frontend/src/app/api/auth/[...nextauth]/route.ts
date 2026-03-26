@@ -14,9 +14,10 @@ export const authOptions: AuthOptions = {
             name: "Credentials",
             credentials: {
                 email: { label: "Email", type: "email" },
-                password: { label: "Password", type: "password" }
+                password: { label: "Password", type: "password" },
+                role: { label: "Role", type: "text" }
             },
-            async authorize(credentials) {
+            async authorize(credentials, req) {
                 if (!credentials?.email || !credentials?.password) {
                     throw new Error("Missing credentials");
                 }
@@ -31,6 +32,15 @@ export const authOptions: AuthOptions = {
                     const data = await res.json();
 
                     if (res.ok && data.user) {
+                        const intendedRole = credentials.role;
+                        
+                        if (intendedRole === 'doctor' && data.user.role !== 'DOCTOR') {
+                            throw new Error('This account is not registered as a doctor.');
+                        }
+                        if (intendedRole === 'patient' && data.user.role === 'DOCTOR') {
+                            throw new Error('Doctor account detected. Please use "Doctor Login".');
+                        }
+
                         return {
                             id: data.user.id,
                             name: data.user.name,
@@ -42,8 +52,10 @@ export const authOptions: AuthOptions = {
 
                     throw new Error(data.error || "Login failed");
                 } catch (error) {
-                    console.error("Auth error", error);
-                    return null;
+                    if (error instanceof Error) {
+                        throw error;
+                    }
+                    throw new Error("Authentication failed");
                 }
             }
         })
