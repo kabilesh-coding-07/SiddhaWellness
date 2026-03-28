@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface Doctor {
     id: string;
@@ -23,17 +22,28 @@ const staticDoctors = [
     { id: '6', docKey: 'd6', exp: 16, img: '👨‍⚕️' },
 ];
 
+import { supabase } from '@/lib/supabase';
+
 export default function DoctorsPage() {
     const { t } = useLanguage();
     const [doctors, setDoctors] = useState<Doctor[]>([]);
     const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_URL}/doctors`)
-            .then((r) => r.json())
-            .then((data) => { if (Array.isArray(data)) setDoctors(data); })
-            .catch(() => { })
-            .finally(() => setLoaded(true));
+        async function loadDoctors() {
+            try {
+                const { data, error } = await supabase
+                    .from('doctors')
+                    .select('*, user:users(name, email, image)');
+
+                if (!error && data) setDoctors(data);
+            } catch (err) {
+                console.error('Error loading doctors:', err);
+            } finally {
+                setLoaded(true);
+            }
+        }
+        loadDoctors();
     }, []);
 
     return (

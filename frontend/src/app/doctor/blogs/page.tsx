@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
+import { supabase } from '@/lib/supabase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface Blog {
     id: string;
@@ -22,41 +22,50 @@ export default function DoctorBlogsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        async function loadBlogs() {
+            const stored = localStorage.getItem('user');
+            if (!stored) { setLoading(false); return; }
+            const user = JSON.parse(stored);
 
-        fetch(`${API_URL}/blogs/my`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => r.json())
-            .then((data) => { if (Array.isArray(data)) setBlogs(data); })
-            .catch(() => { })
-            .finally(() => setLoading(false));
+            try {
+                const { data, error } = await supabase
+                    .from('blogs')
+                    .select('*')
+                    .eq('authorId', user.id)
+                    .order('createdAt', { ascending: false });
+
+                if (!error && data) setBlogs(data);
+            } catch (err) {
+                console.error('Error fetching blogs:', err);
+            } finally {
+                setLoading(false);
+            }
+        }
+        loadBlogs();
     }, []);
 
     const deleteBlog = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this blog post?')) return;
-        const token = localStorage.getItem('token');
+        if (!confirm(t('doctor.deleteBlogConfirm'))) return;
         try {
-            const res = await fetch(`${API_URL}/blogs/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
+            const { error } = await supabase
+                .from('blogs')
+                .delete()
+                .eq('id', id);
+
+            if (!error) {
                 setBlogs((prev) => prev.filter((b) => b.id !== id));
             }
         } catch { /* silently fail */ }
     };
 
     const togglePublish = async (id: string, published: boolean) => {
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${API_URL}/blogs/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ published: !published }),
-            });
-            if (res.ok) {
+            const { error } = await supabase
+                .from('blogs')
+                .update({ published: !published })
+                .eq('id', id);
+
+            if (!error) {
                 setBlogs((prev) => prev.map((b) => b.id === id ? { ...b, published: !published } : b));
             }
         } catch { /* silently fail */ }
@@ -111,7 +120,7 @@ export default function DoctorBlogsPage() {
                                         </p>
                                     )}
                                     <p className="text-xs" style={{ color: '#6b8f7e' }}>
-                                        {t('doctor.lastUpdated')} {new Date(blog.updatedAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                        {t('doctor.lastUpdated')} {new Date(blog.updatedAt).toLocaleDateString(t('common.locale') === 'ta' ? 'ta-IN' : 'en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2 flex-shrink-0">

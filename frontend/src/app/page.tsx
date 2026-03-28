@@ -4,26 +4,74 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
 
+import { supabase } from '@/lib/supabase';
+
 export default function HomePage() {
   const { t } = useLanguage();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [services, setServices] = useState<any[]>([]);
+  const [blogs, setBlogs] = useState<any[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     setIsLoggedIn(!!(token && user));
-  }, []);
+
+    async function loadData() {
+        try {
+            // 1. Fetch featured services
+            const { data: svcData } = await supabase
+                .from('services')
+                .select('*')
+                .limit(6);
+            
+            if (svcData && svcData.length > 0) {
+                setServices(svcData.map(s => ({
+                    icon: s.icon || '🌿',
+                    title: s.name,
+                    desc: s.description
+                })));
+            } else {
+                setServices([
+                    { icon: '🌿', title: t('services.herbalMedicine'), desc: t('services.herbalDesc') },
+                    { icon: '🤲', title: t('services.varmam'), desc: t('services.varmamDesc') },
+                    { icon: '🧘', title: t('services.yoga'), desc: t('services.yogaDesc') },
+                    { icon: '🍃', title: t('services.detox'), desc: t('services.detoxDesc') },
+                    { icon: '🥗', title: t('services.diet'), desc: t('services.dietDesc') },
+                    { icon: '💆', title: t('services.oil'), desc: t('services.oilDesc') },
+                ]);
+            }
+
+            // 2. Fetch recent blogs
+            const { data: blogData } = await supabase
+                .from('blogs')
+                .select('*')
+                .eq('published', true)
+                .order('createdAt', { ascending: false })
+                .limit(3);
+
+            if (blogData && blogData.length > 0) {
+                setBlogs(blogData.map(b => ({
+                    title: b.title,
+                    excerpt: b.excerpt || b.content.substring(0, 100) + '...',
+                    date: new Date(b.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+                    slug: b.slug
+                })));
+            } else {
+                setBlogs([
+                    { title: 'Understanding Siddha Medicine: A Complete Guide', excerpt: 'Discover the ancient Tamil medical system that has been healing people for over 5000 years...', date: 'Feb 20, 2026', slug: 'understanding-siddha-medicine' },
+                    { title: '5 Herbs Every Kitchen Should Have', excerpt: 'These common herbs used in Siddha medicine can boost your immunity and wellbeing daily...', date: 'Feb 15, 2026', slug: '5-herbs-for-kitchen' },
+                    { title: 'Varmam Therapy: Ancient Pressure Points', excerpt: 'Learn how this powerful Siddha technique uses 108 vital points to heal chronic conditions...', date: 'Feb 10, 2026', slug: 'varmam-therapy-guide' },
+                ]);
+            }
+        } catch (err) {
+            console.error('Error loading home data:', err);
+        }
+    }
+    loadData();
+  }, [t]);
 
   const bookHref = isLoggedIn ? '/dashboard/book' : '/register';
-
-  const services = [
-    { icon: '🌿', title: t('services.herbalMedicine'), desc: t('services.herbalDesc') },
-    { icon: '🤲', title: t('services.varmam'), desc: t('services.varmamDesc') },
-    { icon: '🧘', title: t('services.yoga'), desc: t('services.yogaDesc') },
-    { icon: '🍃', title: t('services.detox'), desc: t('services.detoxDesc') },
-    { icon: '🥗', title: t('services.diet'), desc: t('services.dietDesc') },
-    { icon: '💆', title: t('services.oil'), desc: t('services.oilDesc') },
-  ];
 
   const doctors = [
     { name: 'Dr. Kavitha Rajan', specialty: 'Varmam & Pain Management', exp: '18 years', img: '👩‍⚕️' },
@@ -37,13 +85,6 @@ export default function HomePage() {
     { name: 'Karthik M.', text: "The herbal medicines prescribed by Dr. Senthil cured my skin condition that modern medicine couldn't treat for 5 years. Truly magical.", rating: 5 },
     { name: 'Lakshmi P.', text: "Dr. Priya's fertility treatment helped us conceive after 4 years of trying. We are forever grateful to SiddhaWellness.", rating: 5 },
   ];
-
-  const blogs = [
-    { title: 'Understanding Siddha Medicine: A Complete Guide', excerpt: 'Discover the ancient Tamil medical system that has been healing people for over 5000 years...', date: 'Feb 20, 2026', slug: 'understanding-siddha-medicine' },
-    { title: '5 Herbs Every Kitchen Should Have', excerpt: 'These common herbs used in Siddha medicine can boost your immunity and wellbeing daily...', date: 'Feb 15, 2026', slug: '5-herbs-for-kitchen' },
-    { title: 'Varmam Therapy: Ancient Pressure Points', excerpt: 'Learn how this powerful Siddha technique uses 108 vital points to heal chronic conditions...', date: 'Feb 10, 2026', slug: 'varmam-therapy-guide' },
-  ];
-
   return (
     <>
       {/* ═══ HERO ═══ */}

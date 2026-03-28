@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
+import { supabase } from '@/lib/supabase';
 
 interface Appointment {
     id: string;
@@ -21,40 +22,57 @@ export default function DoctorAppointmentsPage() {
     const [noteText, setNoteText] = useState('');
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/doctor`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => r.json())
-                .then((data) => { if (Array.isArray(data)) setAppointments(data); })
-                .catch(() => { });
+        async function loadAppointments() {
+            const stored = localStorage.getItem('user');
+            if (!stored) return;
+            const user = JSON.parse(stored);
+
+            try {
+                // 1. Get doctor_id
+                const { data: doctor } = await supabase
+                    .from('doctors')
+                    .select('id')
+                    .eq('userId', user.id)
+                    .single();
+
+                if (!doctor) return;
+
+                // 2. Fetch appointments
+                const { data: appts, error } = await supabase
+                    .from('appointments')
+                    .select('*, user:users!appointments_userId_fkey(name, email, phone)')
+                    .eq('doctorId', doctor.id)
+                    .order('date', { ascending: false });
+
+                if (!error && appts) setAppointments(appts);
+            } catch (err) {
+                console.error('Error fetching appointments:', err);
+            }
         }
+        loadAppointments();
     }, []);
 
     const updateStatus = async (id: string, status: string) => {
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/${id}/status`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ status }),
-            });
-            if (res.ok) {
+            const { error } = await supabase
+                .from('appointments')
+                .update({ status })
+                .eq('id', id);
+
+            if (!error) {
                 setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
             }
         } catch { /* silently fail */ }
     };
 
     const saveNote = async (id: string) => {
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/${id}/status`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ notes: noteText }),
-            });
-            if (res.ok) {
+            const { error } = await supabase
+                .from('appointments')
+                .update({ notes: noteText })
+                .eq('id', id);
+
+            if (!error) {
                 setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, notes: noteText } : a));
             }
         } catch { /* silently fail */ }
@@ -84,7 +102,7 @@ export default function DoctorAppointmentsPage() {
                             border: `1px solid ${filter === f ? '#059669' : 'rgba(4,120,87,0.1)'}`,
                             color: filter === f ? '#34d399' : '#6b8f7e',
                         }}>
-                        {f}
+                        {f === 'ALL' ? t('common.viewAll') : t(`doctor.status${f.charAt(0) + f.slice(1).toLowerCase()}`)}
                     </button>
                 ))}
             </div>
@@ -101,12 +119,12 @@ export default function DoctorAppointmentsPage() {
                                     <p className="font-semibold" style={{ color: '#f0fdf4' }}>{apt.user?.name}</p>
                                     <p className="text-xs" style={{ color: '#6b8f7e' }}>{apt.user?.email} {apt.user?.phone && `· ${apt.user.phone}`}</p>
                                     <p className="text-sm mt-1" style={{ color: '#a7c4b8' }}>
-                                        📅 {new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })} at {apt.time}
+                                        📅 {new Date(apt.date).toLocaleDateString(t('common.locale') === 'ta' ? 'ta-IN' : 'en-IN', { weekday: 'short', month: 'short', day: 'numeric' })} {t('doctor.at')} {apt.time}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`badge ${statusColors[apt.status]}`}>{apt.status}</span>
+                                <span className={`badge ${statusColors[apt.status]}`}>{t(`doctor.status${apt.status.charAt(0) + apt.status.slice(1).toLowerCase()}`)}</span>
                                 {apt.status === 'PENDING' && (
                                     <>
                                         <button onClick={() => updateStatus(apt.id, 'CONFIRMED')}

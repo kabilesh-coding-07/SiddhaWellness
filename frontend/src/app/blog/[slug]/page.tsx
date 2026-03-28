@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { supabase } from '@/lib/supabase';
 
 // Fallback static data for when API is down
 const staticBlogData: Record<string, { title: string; date: string; category: string; content: string }> = {
@@ -40,6 +39,7 @@ interface BlogPost {
     updatedAt: string;
 }
 
+
 export default function BlogPostPage() {
     const params = useParams();
     const slug = params.slug as string;
@@ -49,16 +49,23 @@ export default function BlogPostPage() {
 
     useEffect(() => {
         if (!slug) return;
-        fetch(`${API_URL}/blogs/${slug}`)
-            .then((r) => {
-                if (!r.ok) throw new Error('Not found');
-                return r.json();
-            })
-            .then((data) => {
-                setBlog(data);
-                setLoading(false);
-            })
-            .catch(() => {
+        
+        async function loadBlog() {
+            try {
+                const { data, error } = await supabase
+                    .from('blogs')
+                    .select('*')
+                    .eq('slug', slug)
+                    .eq('published', true)
+                    .single();
+
+                if (!error && data) {
+                    setBlog(data);
+                    setLoading(false);
+                } else {
+                    throw new Error('Not found');
+                }
+            } catch (err) {
                 // Fallback to static data
                 const fallback = staticBlogData[slug];
                 if (fallback) {
@@ -75,7 +82,9 @@ export default function BlogPostPage() {
                     setUsedFallback(true);
                 }
                 setLoading(false);
-            });
+            }
+        }
+        loadBlog();
     }, [slug]);
 
     if (loading) {

@@ -88,7 +88,7 @@ router.put('/:id', authenticate, requireRole('DOCTOR', 'ADMIN'), async (req: Aut
         const { title, content, excerpt, image, published } = req.body;
 
         // Check ownership
-        const existing = await prisma.blog.findUnique({ where: { id } });
+        const existing = await prisma.blog.findUnique({ where: { id: id as string } });
         if (!existing) {
             res.status(404).json({ error: 'Blog not found' });
             return;
@@ -99,7 +99,7 @@ router.put('/:id', authenticate, requireRole('DOCTOR', 'ADMIN'), async (req: Aut
         }
 
         const blog = await prisma.blog.update({
-            where: { id },
+            where: { id: id as string },
             data: {
                 ...(title && { title }),
                 ...(content && { content }),
@@ -120,7 +120,7 @@ router.delete('/:id', authenticate, requireRole('DOCTOR', 'ADMIN'), async (req: 
     try {
         const { id } = req.params;
 
-        const existing = await prisma.blog.findUnique({ where: { id } });
+        const existing = await prisma.blog.findUnique({ where: { id: id as string } });
         if (!existing) {
             res.status(404).json({ error: 'Blog not found' });
             return;
@@ -130,7 +130,7 @@ router.delete('/:id', authenticate, requireRole('DOCTOR', 'ADMIN'), async (req: 
             return;
         }
 
-        await prisma.blog.delete({ where: { id } });
+        await prisma.blog.delete({ where: { id: id as string } });
         res.json({ success: true });
     } catch (error) {
         res.status(500).json({ error: 'Failed to delete blog' });

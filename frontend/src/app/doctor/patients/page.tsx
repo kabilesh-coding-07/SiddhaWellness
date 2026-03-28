@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
+import { supabase } from '@/lib/supabase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface Patient {
     id: string;
@@ -23,18 +23,32 @@ export default function PatientsPage() {
     const [patients, setPatients] = useState<Patient[]>([]);
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        async function loadPatients() {
+            const stored = localStorage.getItem('user');
+            if (!stored) return;
+            const user = JSON.parse(stored);
 
-        // Fetch doctor's appointments and extract unique patients
-        fetch(`${API_URL}/appointments/doctor`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => r.json())
-            .then((data) => {
-                if (!Array.isArray(data)) return;
+            try {
+                // 1. Get doctor_id
+                const { data: doctor } = await supabase
+                    .from('doctors')
+                    .select('id')
+                    .eq('userId', user.id)
+                    .single();
+
+                if (!doctor) return;
+
+                // 2. Fetch appointments with patient data
+                const { data: appts, error } = await supabase
+                    .from('appointments')
+                    .select('*, user:users!appointments_userId_fkey(name, email, phone, medicalHistory)')
+                    .eq('doctorId', doctor.id);
+
+                if (error || !appts) return;
+
+                // 3. Extract unique patients
                 const patientMap = new Map<string, Patient>();
-                for (const apt of data) {
+                for (const apt of appts) {
                     if (!apt.user) continue;
                     const existing = patientMap.get(apt.userId);
                     if (existing) {
@@ -52,14 +66,17 @@ export default function PatientsPage() {
                             medicalHistory: apt.user.medicalHistory,
                             lastVisit: apt.date,
                             totalVisits: 1,
-                            symptoms: apt.symptoms || 'General consultation',
+                            symptoms: apt.symptoms || t('doctor.consultation'),
                         });
                     }
                 }
                 setPatients(Array.from(patientMap.values()));
-            })
-            .catch(() => { });
-    }, []);
+            } catch (err) {
+                console.error('Error loading patients:', err);
+            }
+        }
+        loadPatients();
+    }, [t]);
 
     const filtered = patients.filter((p) =>
         p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -128,7 +145,7 @@ export default function PatientsPage() {
                                 {[
                                     { label: t('profile.email'), value: selectedPatient.email, icon: '✉️' },
                                     { label: t('profile.phone'), value: selectedPatient.phone || '—', icon: '📞' },
-                                    { label: t('doctor.lastVisit'), value: new Date(selectedPatient.lastVisit).toLocaleDateString(), icon: '📅' },
+                                    { label: t('doctor.lastVisit'), value: new Date(selectedPatient.lastVisit).toLocaleDateString(t('common.locale') === 'ta' ? 'ta-IN' : 'en-IN'), icon: '📅' },
                                 ].map((item) => (
                                     <div key={item.label} className="p-3 rounded-lg" style={{ background: 'rgba(4,120,87,0.05)' }}>
                                         <p className="text-xs mb-1" style={{ color: '#6b8f7e' }}>{item.icon} {item.label}</p>

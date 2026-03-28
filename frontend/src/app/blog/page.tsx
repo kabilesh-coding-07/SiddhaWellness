@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { supabase } from '@/lib/supabase';
 
 interface Blog {
     id: string;
@@ -20,16 +19,29 @@ const staticBlogs = [
     { slug: 'varmam-therapy-guide', titleKey: 'b3', date: 'Feb 10, 2026', categoryKey: 'treat' },
 ];
 
+
 export default function BlogPage() {
     const { t } = useLanguage();
     const [blogs, setBlogs] = useState<Blog[]>([]);
     const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_URL}/blogs`)
-            .then((r) => r.json())
-            .then((data) => { if (Array.isArray(data)) { setBlogs(data); setLoaded(true); } })
-            .catch(() => setLoaded(true));
+        async function loadBlogs() {
+            try {
+                const { data, error } = await supabase
+                    .from('blogs')
+                    .select('*')
+                    .eq('published', true)
+                    .order('createdAt', { ascending: false });
+
+                if (!error && data) setBlogs(data);
+            } catch (err) {
+                console.error('Error loading blogs:', err);
+            } finally {
+                setLoaded(true);
+            }
+        }
+        loadBlogs();
     }, []);
 
     return (

@@ -6,9 +6,12 @@ import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useLanguage } from '@/i18n';
 
+import { createClient } from '@/utils/supabase/client';
+
 export default function RegisterPage() {
     const router = useRouter();
     const { t } = useLanguage();
+    const supabase = createClient();
     const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', confirmPassword: '' });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -25,18 +28,29 @@ export default function RegisterPage() {
         }
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: form.name, email: form.email, password: form.password, phone: form.phone }),
+            // Register via Supabase Auth
+            const { data, error: signUpError } = await supabase.auth.signUp({
+                email: form.email,
+                password: form.password,
+                options: {
+                    data: {
+                        name: form.name,
+                        phone: form.phone,
+                        role: 'USER' // Default role
+                    },
+                    emailRedirectTo: `${window.location.origin}/auth/callback`,
+                }
             });
-            const data = await res.json();
 
-            if (!res.ok) throw new Error(data.error || 'Registration failed');
+            if (signUpError) throw signUpError;
 
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
-            router.push('/dashboard');
+            if (data.user && data.session) {
+                // If auto-confirm is on in Supabase, we are logged in
+                router.push('/dashboard');
+            } else {
+                // If email confirmation is required
+                router.push('/login?message=Check your email to confirm your account');
+            }
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : 'Registration failed');
         } finally {

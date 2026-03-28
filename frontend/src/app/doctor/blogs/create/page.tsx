@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
 
 export default function CreateBlogPage() {
     const router = useRouter();
@@ -16,22 +17,25 @@ export default function CreateBlogPage() {
         setLoading(true);
         setError('');
 
-        const token = localStorage.getItem('token');
-        try {
-            const res = await fetch(`${API_URL}/blogs`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(form),
-            });
+        const stored = localStorage.getItem('user');
+        if (!stored) { setError('User session not found'); setLoading(false); return; }
+        const user = JSON.parse(stored);
 
-            if (res.ok) {
-                router.push('/doctor/blogs');
-            } else {
-                const data = await res.json();
-                setError(data.error || 'Failed to create blog');
-            }
-        } catch {
-            setError('Failed to connect to server');
+        const slug = form.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+        try {
+            const { error } = await supabase
+                .from('blogs')
+                .insert([{
+                    ...form,
+                    slug,
+                    authorId: user.id
+                }]);
+
+            if (error) throw error;
+            router.push('/doctor/blogs');
+        } catch (err: any) {
+            setError(err.message || 'Failed to create blog');
         } finally {
             setLoading(false);
         }

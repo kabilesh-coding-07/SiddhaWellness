@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+import { supabase } from '@/lib/supabase';
 
 export default function EditBlogPage() {
     const router = useRouter();
@@ -16,30 +17,34 @@ export default function EditBlogPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token || !blogId) return;
+        if (!blogId) return;
 
-        // Fetch all doctor's blogs, then find the one by ID
-        fetch(`${API_URL}/blogs/my`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => r.json())
-            .then((blogs) => {
-                const blog = Array.isArray(blogs) ? blogs.find((b: { id: string }) => b.id === blogId) : null;
-                if (blog) {
+        async function loadBlog() {
+            try {
+                const { data, error } = await supabase
+                    .from('blogs')
+                    .select('*')
+                    .eq('id', blogId)
+                    .single();
+
+                if (!error && data) {
                     setForm({
-                        title: blog.title || '',
-                        content: blog.content || '',
-                        excerpt: blog.excerpt || '',
-                        image: blog.image || '',
-                        published: blog.published || false,
+                        title: data.title || '',
+                        content: data.content || '',
+                        excerpt: data.excerpt || '',
+                        image: data.image || '',
+                        published: data.published || false,
                     });
                 } else {
                     setError('Blog post not found');
                 }
-            })
-            .catch(() => setError('Failed to load blog'))
-            .finally(() => setLoadingData(false));
+            } catch (err) {
+                setError('Failed to load blog');
+            } finally {
+                setLoadingData(false);
+            }
+        }
+        loadBlog();
     }, [blogId]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -47,22 +52,16 @@ export default function EditBlogPage() {
         setLoading(true);
         setError('');
 
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${API_URL}/blogs/${blogId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(form),
-            });
+            const { error } = await supabase
+                .from('blogs')
+                .update(form)
+                .eq('id', blogId);
 
-            if (res.ok) {
-                router.push('/doctor/blogs');
-            } else {
-                const data = await res.json();
-                setError(data.error || 'Failed to update blog');
-            }
-        } catch {
-            setError('Failed to connect to server');
+            if (error) throw error;
+            router.push('/doctor/blogs');
+        } catch (err: any) {
+            setError(err.message || 'Failed to update blog');
         } finally {
             setLoading(false);
         }

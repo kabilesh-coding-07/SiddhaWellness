@@ -3,8 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { supabase } from '@/lib/supabase';
 
 interface Service {
     id: string;
@@ -25,17 +24,28 @@ const staticServices = [
     { id: '6', icon: '💆', titleKey: 'services.oil', descKey: 'services.oilDesc', price: '₹2,000 – ₹4,000', duration: '60–90 min' },
 ];
 
+
 export default function ServicesPage() {
     const { t } = useLanguage();
     const [services, setServices] = useState<Service[]>([]);
     const [loaded, setLoaded] = useState(false);
 
     useEffect(() => {
-        fetch(`${API_URL}/services`)
-            .then((r) => r.json())
-            .then((data) => { if (Array.isArray(data)) setServices(data); })
-            .catch(() => { })
-            .finally(() => setLoaded(true));
+        async function loadServices() {
+            try {
+                const { data, error } = await supabase
+                    .from('services')
+                    .select('*')
+                    .order('name', { ascending: true });
+
+                if (!error && data) setServices(data);
+            } catch (err) {
+                console.error('Error loading services:', err);
+            } finally {
+                setLoaded(true);
+            }
+        }
+        loadServices();
     }, []);
 
     return (

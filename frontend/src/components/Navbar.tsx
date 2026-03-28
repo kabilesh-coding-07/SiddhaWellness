@@ -19,26 +19,39 @@ interface User {
     role: string;
 }
 
+import { createClient } from '@/utils/supabase/client';
+
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
     const [user, setUser] = useState<User | null>(null);
     const router = useRouter();
     const pathname = usePathname();
     const { lang, setLang, t } = useLanguage();
+    const supabase = createClient();
 
     useEffect(() => {
-        const stored = localStorage.getItem('user');
-        if (stored) {
-            try { setUser(JSON.parse(stored)); } catch { /* ignore */ }
-        } else {
-            setUser(null);
-        }
-    }, [pathname]);
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session) {
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('name, role')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                setUser({
+                    name: profile?.name || session.user.email?.split('@')[0] || 'User',
+                    role: profile?.role || 'USER'
+                });
+            } else {
+                setUser(null);
+            }
+        });
 
-    const handleLogout = () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        setUser(null);
+        return () => subscription.unsubscribe();
+    }, [supabase]);
+
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         router.push('/');
     };
 

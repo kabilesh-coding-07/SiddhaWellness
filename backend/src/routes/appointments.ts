@@ -69,7 +69,7 @@ router.patch('/:id/status', authenticate, requireRole('DOCTOR'), async (req: Aut
         const { id } = req.params;
         const { status, notes } = req.body;
         const appointment = await prisma.appointment.update({
-            where: { id },
+            where: { id: id as string },
             data: { status, notes },
             include: {
                 user: { select: { name: true, email: true } },
@@ -87,7 +87,7 @@ router.patch('/:id/cancel', authenticate, async (req: AuthRequest, res: Response
     try {
         const { id } = req.params;
         const appointment = await prisma.appointment.update({
-            where: { id, userId: req.userId },
+            where: { id: id as string, userId: req.userId },
             data: { status: 'CANCELLED' },
         });
         res.json(appointment);

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
+import { supabase } from '@/lib/supabase';
 
 interface Appointment {
     id: string;
@@ -14,30 +15,47 @@ interface Appointment {
 
 export default function DoctorDashboard() {
     const { t } = useLanguage();
-    const [user, setUser] = useState<{ name: string } | null>(null);
+    const [user, setUser] = useState<{ id: string, name: string } | null>(null);
     const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
     const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
 
     useEffect(() => {
-        const stored = localStorage.getItem('user');
-        if (stored) setUser(JSON.parse(stored));
+        async function loadData() {
+            const stored = localStorage.getItem('user');
+            if (!stored) return;
+            const userData = JSON.parse(stored);
+            setUser(userData);
 
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/doctor`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => r.json())
-                .then((data) => {
-                    if (Array.isArray(data)) {
-                        const today = new Date().toISOString().split('T')[0];
-                        const todayAppts = data.filter((a: Appointment) => a.date.startsWith(today));
-                        setTodayAppointments(todayAppts.length > 0 ? todayAppts : data.slice(0, 4));
-                        setAllAppointments(data);
-                    }
-                })
-                .catch(() => { });
+            try {
+                // 1. Get the doctor_id for this user
+                const { data: doctor, error: docError } = await supabase
+                    .from('doctors')
+                    .select('id')
+                    .eq('userId', userData.id)
+                    .single();
+
+                if (docError || !doctor) return;
+
+                // 2. Fetch appointments for this doctor (including patient info)
+                const { data: appts, error: apptError } = await supabase
+                    .from('appointments')
+                    .select('*, user:users!appointments_userId_fkey(name)')
+                    .eq('doctorId', doctor.id)
+                    .order('date', { ascending: true });
+
+                if (apptError || !appts) return;
+
+                const today = new Date().toISOString().split('T')[0];
+                const todayAppts = appts.filter((a: any) => a.date.startsWith(today));
+                
+                setTodayAppointments(todayAppts.length > 0 ? todayAppts : appts.slice(0, 4));
+                setAllAppointments(appts);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+            }
         }
+
+        loadData();
     }, []);
 
     const statusColors: Record<string, string> = {
@@ -49,7 +67,7 @@ export default function DoctorDashboard() {
         <div>
             <div className="mb-8">
                 <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>
-                    {t('doctor.goodDay')} <span className="gradient-text">{user?.name || 'Doctor'}</span>
+                    {t('doctor.goodDay')} <span className="gradient-text">{user?.name || t('doctor.doctorNameFallback')}</span>
                 </h1>
                 <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('doctor.scheduleOverview')}</p>
             </div>
@@ -93,14 +111,14 @@ export default function DoctorDashboard() {
                                 <div className="w-px h-8" style={{ background: 'rgba(4,120,87,0.2)' }} />
                                 <div>
                                     <p className="font-semibold text-sm" style={{ color: '#f0fdf4' }}>{apt.user?.name}</p>
-                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>Consultation</p>
+                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>{t('doctor.consultation')}</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <span className={`badge ${statusColors[apt.status]}`}>{apt.status}</span>
+                                <span className={`badge ${statusColors[apt.status]}`}>{t(`doctor.status${apt.status.charAt(0) + apt.status.slice(1).toLowerCase()}`)}</span>
                                 <Link href="/doctor/appointments" className="text-xs px-3 py-1 rounded-lg transition-all hover:bg-emerald-900/30"
                                     style={{ color: '#34d399', border: '1px solid rgba(4,120,87,0.2)' }}>
-                                    View
+                                    {t('doctor.view')}
                                 </Link>
                             </div>
                         </div>

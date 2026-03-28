@@ -1,8 +1,8 @@
 import NextAuth, { AuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+import { supabase } from "@/lib/supabase";
+import bcrypt from "bcryptjs";
 
 export const authOptions: AuthOptions = {
     providers: [
@@ -17,40 +17,50 @@ export const authOptions: AuthOptions = {
                 password: { label: "Password", type: "password" },
                 role: { label: "Role", type: "text" }
             },
-            async authorize(credentials, req) {
+            async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) {
                     throw new Error("Missing credentials");
                 }
 
                 try {
-                    const res = await fetch(`${API_URL}/auth/login`, {
-                        method: 'POST',
-                        body: JSON.stringify(credentials),
-                        headers: { "Content-Type": "application/json" }
-                    });
+                    // 1. Fetch user directly from Supabase (bypassing Express backend)
+                    const { data: user, error } = await supabase
+                        .from('users')
+                        .select('id, email, password, name, role')
+                        .eq('email', credentials.email)
+                        .single();
 
-                    const data = await res.json();
-
-                    if (res.ok && data.user) {
-                        const intendedRole = credentials.role;
-                        
-                        if (intendedRole === 'doctor' && data.user.role !== 'DOCTOR') {
-                            throw new Error('This account is not registered as a doctor.');
-                        }
-                        if (intendedRole === 'patient' && data.user.role === 'DOCTOR') {
-                            throw new Error('Doctor account detected. Please use "Doctor Login".');
-                        }
-
-                        return {
-                            id: data.user.id,
-                            name: data.user.name,
-                            email: data.user.email,
-                            role: data.user.role,
-                            token: data.token
-                        } as any;
+                    if (error || !user) {
+                        throw new Error("Invalid credentials");
                     }
 
-                    throw new Error(data.error || "Login failed");
+                    // 2. Verify password
+                    if (!user.password) {
+                        throw new Error("Please use Google Sign-in for this account.");
+                    }
+
+                    const isValid = await bcrypt.compare(credentials.password, user.password);
+                    if (!isValid) {
+                        throw new Error("Invalid credentials");
+                    }
+
+                    // 3. Verify intended role
+                    const intendedRole = credentials.role;
+                    if (intendedRole === 'doctor' && user.role !== 'DOCTOR') {
+                        throw new Error('This account is not registered as a doctor.');
+                    }
+                    if (intendedRole === 'patient' && user.role === 'DOCTOR') {
+                        throw new Error('Doctor account detected. Please use "Doctor Login".');
+                    }
+
+                    // 4. Return user object (NextAuth will create the session)
+                    return {
+                        id: user.id,
+                        name: user.name,
+                        email: user.email,
+                        role: user.role,
+                        token: 'DIRECT_SUPABASE_SESSION' // Placeholder since we bypass separate backend tokens
+                    } as any;
                 } catch (error) {
                     if (error instanceof Error) {
                         throw error;
@@ -62,26 +72,55 @@ export const authOptions: AuthOptions = {
     ],
     callbacks: {
         async signIn({ user, account }) {
-            // For Google sign-in, sync user to backend DB and get JWT
+            // For Google sign-in, sync user directly to Supabase
             if (account?.provider === 'google' && user?.email) {
                 try {
-                    const res = await fetch(`${API_URL}/auth/google`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            email: user.email,
-                            name: user.name,
-                            image: user.image,
-                        }),
-                    });
-                    const data = await res.json();
-                    if (res.ok && data.token) {
-                        (user as any).token = data.token;
-                        (user as any).role = data.user.role;
-                        (user as any).id = data.user.id;
+                    const { data: existingUser, error: findError } = await supabase
+                        .from('users')
+                        .select('*')
+                        .eq('email', user.email)
+                        .single();
+
+                    if (!existingUser) {
+                        // Create new user if they don't exist
+                        const { data: newUser, error: createError } = await supabase
+                            .from('users')
+                            .insert({
+                                id: crypto.randomUUID(),
+                                email: user.email,
+                                name: user.name || user.email.split('@')[0],
+                                image: user.image,
+                                role: 'USER', // Default role for new Google sign-ups
+                                createdAt: new Date().toISOString(),
+                                updatedAt: new Date().toISOString()
+                            })
+                            .select()
+                            .single();
+
+                        if (newUser) {
+                            (user as any).role = newUser.role;
+                            (user as any).id = newUser.id;
+                        }
+                    } else {
+                        // Update existing user
+                        const { data: updatedUser } = await supabase
+                            .from('users')
+                            .update({
+                                name: user.name || existingUser.name,
+                                image: user.image || existingUser.image,
+                            })
+                            .eq('email', user.email)
+                            .select()
+                            .single();
+
+                        if (updatedUser) {
+                            (user as any).role = updatedUser.role;
+                            (user as any).id = updatedUser.id;
+                        }
                     }
+                    (user as any).token = 'DIRECT_SUPABASE_GOOGLE_SESSION';
                 } catch (error) {
-                    console.error('Failed to sync Google user to backend:', error);
+                    console.error('Failed to sync Google user to Supabase:', error);
                 }
             }
             return true;
@@ -110,7 +149,8 @@ export const authOptions: AuthOptions = {
     pages: {
         signIn: '/login',
         error: '/login',
-    }
+    },
+    secret: process.env.NEXTAUTH_SECRET,
 };
 
 const handler = NextAuth(authOptions);

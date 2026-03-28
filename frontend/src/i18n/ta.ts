@@ -23,6 +23,7 @@ const ta = {
         yearsExp: 'வருட அனுபவம்',
         search: 'தேடு',
         noResults: 'முடிவுகள் எதுவும் இல்லை',
+        locale: 'ta'
     },
 
     // Navbar
@@ -293,6 +294,31 @@ const ta = {
         saveAvailability: '✨ அட்டவணையை சேமி',
         blogManagementDesc: 'சுகாதார கட்டுரைகளை உருவாக்கு, திருத்து மற்றும் வெளியிடு.',
         lastUpdated: 'கடைசியாக புதுப்பிக்கப்பட்டது: ',
+        
+        // Days
+        monday: 'திங்கள்',
+        tuesday: 'செவ்வாய்',
+        wednesday: 'புதன்',
+        thursday: 'வியாழன்',
+        friday: 'வெள்ளி',
+        saturday: 'சனி',
+        sunday: 'ஞாயிறு',
+        
+        // Statuses
+        statusPending: 'காத்திருக்கிறது',
+        statusConfirmed: 'உறுதி செய்யப்பட்டது',
+        statusCompleted: 'முடிந்தது',
+        statusRejected: 'நிராகரிக்கப்பட்டது',
+        statusCancelled: 'ரத்து செய்யப்பட்டது',
+        
+        // Labels
+        consultation: 'ஆலோசனை',
+        view: 'காண்க',
+        at: 'மணிக்கு',
+        to: 'வரையிலும்',
+        mins: 'நிமிடம்',
+        doctorNameFallback: 'மருத்துவர்',
+        deleteBlogConfirm: 'இந்த பதிவை நீக்க விரும்புகிறீர்களா?',
     },
 
     // Footer

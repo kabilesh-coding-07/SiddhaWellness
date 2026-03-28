@@ -13,24 +13,33 @@ interface Appointment {
     doctor?: { user: { name: string } };
 }
 
+import { supabase } from '@/lib/supabase';
+
 export default function DashboardPage() {
     const { t } = useLanguage();
-    const [user, setUser] = useState<{ name: string } | null>(null);
+    const [user, setUser] = useState<{ id: string; name: string } | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
 
     useEffect(() => {
         const stored = localStorage.getItem('user');
-        if (stored) setUser(JSON.parse(stored));
+        if (!stored) return;
+        const userData = JSON.parse(stored);
+        setUser(userData);
 
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/my`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => r.json())
-                .then((data) => { if (Array.isArray(data)) setAppointments(data); })
-                .catch(() => { });
+        async function loadAppointments() {
+            try {
+                const { data, error } = await supabase
+                    .from('appointments')
+                    .select('*, doctor:doctors(user:users(name))')
+                    .eq('userId', userData.id)
+                    .order('date', { ascending: false });
+
+                if (!error && data) setAppointments(data);
+            } catch (err) {
+                console.error('Error fetching appointments:', err);
+            }
         }
+        loadAppointments();
     }, []);
 
     const statusColors: Record<string, string> = {

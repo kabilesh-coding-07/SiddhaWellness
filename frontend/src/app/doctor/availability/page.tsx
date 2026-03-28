@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/i18n';
+import { supabase } from '@/lib/supabase';
 
 interface TimeSlot {
     start: string;
@@ -24,33 +25,51 @@ const defaultSchedule: DaySchedule[] = [
     { day: 'Sunday', enabled: false, slots: [] },
 ];
 
+
 export default function AvailabilityPage() {
     const { t } = useLanguage();
     const [schedule, setSchedule] = useState<DaySchedule[]>(defaultSchedule);
     const [saved, setSaved] = useState(false);
     const [consultDuration, setConsultDuration] = useState('30');
     const [loadingData, setLoadingData] = useState(true);
+    const [doctorId, setDoctorId] = useState<string | null>(null);
 
     // Load saved availability on mount
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) { setLoadingData(false); return; }
+        async function loadProfile() {
+            const stored = localStorage.getItem('user');
+            if (!stored) { setLoadingData(false); return; }
+            const user = JSON.parse(stored);
 
-        fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/doctors/me/profile`, {
-            headers: { Authorization: `Bearer ${token}` },
-        })
-            .then((r) => r.json())
-            .then((doctor) => {
-                if (doctor.availability) {
-                    try {
-                        const parsed = JSON.parse(doctor.availability);
-                        if (parsed.schedule) setSchedule(parsed.schedule);
-                        if (parsed.consultDuration) setConsultDuration(parsed.consultDuration);
-                    } catch { /* use defaults */ }
+            try {
+                const { data: doctor, error } = await supabase
+                    .from('doctors')
+                    .select('id, availability')
+                    .eq('userId', user.id)
+                    .single();
+
+                if (error || !doctor) {
+                    setLoadingData(false);
+                    return;
                 }
-            })
-            .catch(() => { /* use defaults */ })
-            .finally(() => setLoadingData(false));
+
+                setDoctorId(doctor.id);
+
+                if (doctor.availability) {
+                    const parsed = typeof doctor.availability === 'string' 
+                        ? JSON.parse(doctor.availability) 
+                        : doctor.availability;
+                    
+                    if (parsed.schedule) setSchedule(parsed.schedule);
+                    if (parsed.consultDuration) setConsultDuration(parsed.consultDuration);
+                }
+            } catch (err) {
+                console.error('Error loading availability:', err);
+            } finally {
+                setLoadingData(false);
+            }
+        }
+        loadProfile();
     }, []);
 
     const toggleDay = (index: number) => {
@@ -79,14 +98,15 @@ export default function AvailabilityPage() {
     };
 
     const handleSave = async () => {
-        const token = localStorage.getItem('token');
+        if (!doctorId) return;
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/doctors/availability`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ availability: JSON.stringify({ schedule, consultDuration }) }),
-            });
-            if (res.ok) {
+            const availabilityData = { schedule, consultDuration };
+            const { error } = await supabase
+                .from('doctors')
+                .update({ availability: availabilityData })
+                .eq('id', doctorId);
+
+            if (!error) {
                 setSaved(true);
                 setTimeout(() => setSaved(false), 3000);
             }
@@ -117,7 +137,7 @@ export default function AvailabilityPage() {
                                     border: `1px solid ${consultDuration === d ? '#059669' : 'rgba(4,120,87,0.1)'}`,
                                     color: consultDuration === d ? 'white' : '#a7c4b8',
                                 }}>
-                                {d} min
+                                {d} {t('doctor.mins')}
                             </button>
                         ))}
                     </div>
@@ -138,7 +158,7 @@ export default function AvailabilityPage() {
                                                 style={{ left: day.enabled ? '18px' : '2px' }} />
                                         </button>
                                         <span className={`text-sm font-semibold ${day.enabled ? '' : 'opacity-50'}`}
-                                            style={{ color: '#f0fdf4' }}>{day.day}</span>
+                                            style={{ color: '#f0fdf4' }}>{t(`doctor.${day.day.toLowerCase()}`)}</span>
                                     </div>
                                     {day.enabled && (
                                         <button onClick={() => addSlot(di)} className="text-xs transition-colors hover:text-emerald-300"
@@ -152,7 +172,7 @@ export default function AvailabilityPage() {
                                             <div key={si} className="flex items-center gap-3">
                                                 <input type="time" className="form-input py-1.5 text-sm" style={{ width: '140px' }}
                                                     value={slot.start} onChange={(e) => updateSlot(di, si, 'start', e.target.value)} />
-                                                <span className="text-xs" style={{ color: '#6b8f7e' }}>to</span>
+                                                <span className="text-xs" style={{ color: '#6b8f7e' }}>{t('doctor.to')}</span>
                                                 <input type="time" className="form-input py-1.5 text-sm" style={{ width: '140px' }}
                                                     value={slot.end} onChange={(e) => updateSlot(di, si, 'end', e.target.value)} />
                                                 {day.slots.length > 1 && (

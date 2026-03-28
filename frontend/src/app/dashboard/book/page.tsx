@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/i18n';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 interface Doctor {
     id: string;
@@ -18,6 +17,8 @@ const timeSlots = [
     '05:00 PM', '05:30 PM', '06:00 PM',
 ];
 
+import { supabase } from '@/lib/supabase';
+
 export default function BookAppointmentPage() {
     const router = useRouter();
     const { t } = useLanguage();
@@ -28,11 +29,17 @@ export default function BookAppointmentPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        // Fetch doctors from API
-        fetch(`${API_URL}/doctors`)
-            .then((r) => r.json())
-            .then((data) => { if (Array.isArray(data)) setDoctors(data); })
-            .catch(() => { });
+        async function loadDoctors() {
+            try {
+                const { data, error } = await supabase
+                    .from('doctors')
+                    .select('*, user:users(name)');
+                if (!error && data) setDoctors(data);
+            } catch (err) {
+                console.error('Error loading doctors:', err);
+            }
+        }
+        loadDoctors();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -40,23 +47,27 @@ export default function BookAppointmentPage() {
         setLoading(true);
         setError('');
 
-        try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`${API_URL}/appointments`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify(form),
-            });
+        const stored = localStorage.getItem('user');
+        if (!stored) { setError('User session not found'); setLoading(false); return; }
+        const user = JSON.parse(stored);
 
-            if (res.ok) {
-                setSuccess(true);
-                setTimeout(() => router.push('/dashboard/appointments'), 2000);
-            } else {
-                const data = await res.json();
-                setError(data.error || 'Booking failed');
-            }
-        } catch {
-            setError('Failed to connect to server');
+        try {
+            const { error } = await supabase
+                .from('appointments')
+                .insert([{
+                    ...form,
+                    id: crypto.randomUUID(),
+                    userId: user.id,
+                    status: 'PENDING',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                }]);
+
+            if (error) throw error;
+            setSuccess(true);
+            setTimeout(() => router.push('/dashboard/appointments'), 2000);
+        } catch (err: any) {
+            setError(err.message || 'Booking failed');
         } finally {
             setLoading(false);
         }

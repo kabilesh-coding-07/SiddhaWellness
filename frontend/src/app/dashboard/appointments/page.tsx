@@ -13,34 +13,45 @@ interface Appointment {
     doctor?: { user: { name: string }; specialty: string };
 }
 
+import { supabase } from '@/lib/supabase';
+
 export default function AppointmentsPage() {
     const { t } = useLanguage();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filter, setFilter] = useState('ALL');
 
     const cancelAppointment = async (id: string) => {
-        const token = localStorage.getItem('token');
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/${id}/cancel`, {
-                method: 'PATCH',
-                headers: { Authorization: `Bearer ${token}` },
-            });
-            if (res.ok) {
+            const { error } = await supabase
+                .from('appointments')
+                .update({ status: 'CANCELLED' })
+                .eq('id', id);
+
+            if (!error) {
                 setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status: 'CANCELLED' } : a));
             }
         } catch { /* silently fail */ }
     };
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/appointments/my`, {
-                headers: { Authorization: `Bearer ${token}` },
-            })
-                .then((r) => r.json())
-                .then((data) => { if (Array.isArray(data)) setAppointments(data); })
-                .catch(() => { });
+        const stored = localStorage.getItem('user');
+        if (!stored) return;
+        const user = JSON.parse(stored);
+
+        async function loadAppointments() {
+            try {
+                const { data, error } = await supabase
+                    .from('appointments')
+                    .select('*, doctor:doctors(specialty, user:users(name))')
+                    .eq('userId', user.id)
+                    .order('date', { ascending: false });
+
+                if (!error && data) setAppointments(data);
+            } catch (err) {
+                console.error('Error loading appointments:', err);
+            }
         }
+        loadAppointments();
     }, []);
 
     const statusColors: Record<string, string> = {

@@ -23,6 +23,7 @@ const en = {
         yearsExp: 'years experience',
         search: 'Search',
         noResults: 'No results found',
+        locale: 'en',
     },
 
     // Navbar
@@ -293,6 +294,31 @@ const en = {
         saveAvailability: '✨ Save Availability',
         blogManagementDesc: 'Create, edit, and publish health articles.',
         lastUpdated: 'Last updated: ',
+        
+        // Days
+        monday: 'Monday',
+        tuesday: 'Tuesday',
+        wednesday: 'Wednesday',
+        thursday: 'Thursday',
+        friday: 'Friday',
+        saturday: 'Saturday',
+        sunday: 'Sunday',
+        
+        // Statuses
+        statusPending: 'PENDING',
+        statusConfirmed: 'CONFIRMED',
+        statusCompleted: 'COMPLETED',
+        statusRejected: 'REJECTED',
+        statusCancelled: 'CANCELLED',
+        
+        // Labels
+        consultation: 'Consultation',
+        view: 'View',
+        at: 'at',
+        to: 'to',
+        mins: 'min',
+        doctorNameFallback: 'Doctor',
+        deleteBlogConfirm: 'Are you sure you want to delete this blog post?',
     },
 
     // Footer

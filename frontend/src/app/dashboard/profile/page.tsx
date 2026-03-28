@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useLanguage } from '@/i18n';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+
+import { supabase } from '@/lib/supabase';
 
 export default function ProfilePage() {
     const { t } = useLanguage();
@@ -13,59 +14,73 @@ export default function ProfilePage() {
     const [stats, setStats] = useState({ totalVisits: 0, activePlans: 0, nextDate: '—' });
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (!token) return;
+        const stored = localStorage.getItem('user');
+        if (!stored) return;
+        const user = JSON.parse(stored);
 
-        // Fetch full profile from API
-        fetch(`${API_URL}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-            .then((r) => r.json())
-            .then((user) => {
-                setForm({
-                    name: user.name || '',
-                    email: user.email || '',
-                    phone: user.phone || '',
-                    medicalHistory: user.medicalHistory || '',
-                });
-            })
-            .catch(() => {
-                // Fall back to localStorage
-                const stored = localStorage.getItem('user');
-                if (stored) {
-                    const user = JSON.parse(stored);
-                    setForm((f) => ({ ...f, name: user.name, email: user.email }));
+        async function loadProfile() {
+            try {
+                // Fetch full profile
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!userError && userData) {
+                    setForm({
+                        name: userData.name || '',
+                        email: userData.email || '',
+                        phone: userData.phone || '',
+                        medicalHistory: userData.medicalHistory || '',
+                    });
                 }
-            });
 
-        // Fetch appointment stats
-        fetch(`${API_URL}/appointments/my`, { headers: { Authorization: `Bearer ${token}` } })
-            .then((r) => r.json())
-            .then((apts) => {
-                if (!Array.isArray(apts)) return;
-                const now = new Date();
-                const upcoming = apts
-                    .filter((a: { date: string; status: string }) => new Date(a.date) >= now && a.status !== 'CANCELLED')
-                    .sort((a: { date: string }, b: { date: string }) => new Date(a.date).getTime() - new Date(b.date).getTime());
-                setStats({
-                    totalVisits: apts.filter((a: { status: string }) => a.status === 'COMPLETED').length,
-                    activePlans: upcoming.length,
-                    nextDate: upcoming.length > 0 ? new Date(upcoming[0].date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—',
-                });
-            })
-            .catch(() => { });
+                // Fetch appointment stats
+                const { data: apts, error: aptsError } = await supabase
+                    .from('appointments')
+                    .select('*')
+                    .eq('userId', user.id);
+
+                if (!aptsError && Array.isArray(apts)) {
+                    const now = new Date();
+                    const upcoming = apts
+                        .filter((a: any) => new Date(a.date) >= now && a.status !== 'CANCELLED')
+                        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                    
+                    setStats({
+                        totalVisits: apts.filter((a: any) => a.status === 'COMPLETED').length,
+                        activePlans: upcoming.length,
+                        nextDate: upcoming.length > 0 ? new Date(upcoming[0].date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—',
+                    });
+                }
+            } catch (err) {
+                console.error('Error loading profile:', err);
+            }
+        }
+        loadProfile();
     }, []);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        const token = localStorage.getItem('token');
+        const stored = localStorage.getItem('user');
+        if (!stored) return;
+        const user = JSON.parse(stored);
+
         try {
-            const res = await fetch(`${API_URL}/auth/profile`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ name: form.name, phone: form.phone, medicalHistory: form.medicalHistory }),
-            });
-            if (res.ok) {
-                const updated = await res.json();
+            const { data: updated, error } = await supabase
+                .from('users')
+                .update({ 
+                    name: form.name, 
+                    phone: form.phone, 
+                    medicalHistory: form.medicalHistory 
+                })
+                .eq('id', user.id)
+                .select()
+                .single();
+
+            if (!error && updated) {
                 localStorage.setItem('user', JSON.stringify(updated));
                 setSaved(true);
                 setTimeout(() => setSaved(false), 3000);
