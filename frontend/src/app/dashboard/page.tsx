@@ -21,6 +21,33 @@ export default function DashboardPage() {
     const [appointments, setAppointments] = useState<Appointment[]>([]);
 
     useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                // Fetch user profile
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('id, name')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                if (profile) {
+                    setUser(profile);
+                    
+                    // Load appointments for this user
+                    const { data, error } = await supabase
+                        .from('appointments')
+                        .select('*, doctor:doctors(user:users(name))')
+                        .eq('userId', profile.id)
+                        .order('date', { ascending: false });
+
+                    if (!error && data) setAppointments(data);
+                }
+            }
+        };
+
+        checkSession();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 // 1. Fetch user profile

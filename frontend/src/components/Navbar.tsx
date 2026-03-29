@@ -30,6 +30,26 @@ export default function Navbar() {
     const supabase = createClient();
 
     useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('name, role')
+                    .eq('id', session.user.id)
+                    .single();
+                
+                setUser({
+                    name: profile?.name || session.user.email?.split('@')[0] || 'User',
+                    role: profile?.role || 'USER'
+                });
+            } else {
+                setUser(null);
+            }
+        };
+        
+        checkSession();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 const { data: profile } = await supabase

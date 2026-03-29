@@ -14,6 +14,48 @@ export default function ProfilePage() {
     const [stats, setStats] = useState({ totalVisits: 0, activePlans: 0, nextDate: '—' });
 
     useEffect(() => {
+        const checkSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                // Fetch full profile
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('*')
+                    .eq('id', session.user.id)
+                    .single();
+
+                if (!userError && userData) {
+                    setForm({
+                        name: userData.name || '',
+                        email: userData.email || '',
+                        phone: userData.phone || '',
+                        medicalHistory: userData.medicalHistory || '',
+                    });
+                }
+
+                // Fetch appointment stats
+                const { data: apts, error: aptsError } = await supabase
+                    .from('appointments')
+                    .select('*')
+                    .eq('userId', session.user.id);
+
+                if (!aptsError && Array.isArray(apts)) {
+                    const now = new Date();
+                    const upcoming = apts
+                        .filter((a: any) => new Date(a.date) >= now && a.status !== 'CANCELLED')
+                        .sort((a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                    
+                    setStats({
+                        totalVisits: apts.filter((a: any) => a.status === 'COMPLETED').length,
+                        activePlans: upcoming.length,
+                        nextDate: upcoming.length > 0 ? new Date(upcoming[0].date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' }) : '—',
+                    });
+                }
+            }
+        };
+
+        checkSession();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session) {
                 // Fetch full profile
@@ -115,7 +157,7 @@ export default function ProfilePage() {
                     </div>
                     <div>
                         <label className="form-label">{t('profile.phone')}</label>
-                        <input type="tel" className="form-input" placeholder="+91 98765 43210" value={form.phone}
+                        <input type="tel" className="form-input" placeholder={t('common.phonePlaceholder') || 'Enter your phone number'} value={form.phone}
                             onChange={(e) => setForm({ ...form, phone: e.target.value })} />
                     </div>
 
