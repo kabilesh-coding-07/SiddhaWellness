@@ -34,6 +34,7 @@ export default function RegisterPage() {
                 options: {
                     data: {
                         name: form.name,
+                        full_name: form.name, // Both keys for compatibility
                         phone: form.phone,
                         role: 'USER'
                     },

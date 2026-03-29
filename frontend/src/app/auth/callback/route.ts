@@ -11,22 +11,32 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
-        // Fetch profile to see where to redirect
-        const { data: { user } } = await supabase.auth.getUser()
-        if (user) {
-            // Check if profile exists (managed by DB trigger)
-            const { data: profile } = await supabase
-                .from('users')
-                .select('role')
-                .eq('id', user.id)
-                .single();
-            
-            if (profile?.role === 'DOCTOR') {
-                return NextResponse.redirect(`${origin}/doctor`)
-            }
-            return NextResponse.redirect(`${origin}/dashboard`)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        // Retry loop to wait for the Supabase trigger to create the profile
+        let profile = null
+        for (let i = 0; i < 5; i++) {
+          const { data: p } = await supabase
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single()
+          
+          if (p) {
+            profile = p
+            break
+          }
+          // Wait 500ms before next retry
+          await new Promise(resolve => setTimeout(resolve, 500))
         }
-        return NextResponse.redirect(`${origin}${next}`)
+        
+        const role = profile?.role || user.user_metadata?.role || 'USER'
+        if (role === 'DOCTOR') {
+          return NextResponse.redirect(`${origin}/doctor`)
+        }
+        return NextResponse.redirect(`${origin}/dashboard`)
+      }
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
