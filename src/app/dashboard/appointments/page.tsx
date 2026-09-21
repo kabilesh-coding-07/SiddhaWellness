@@ -128,8 +128,8 @@ export default function AppointmentsPage() {
                                 <div className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl"
                                     style={{ background: 'rgba(4,120,87,0.15)' }}>👨‍⚕️</div>
                                 <div>
-                                    <p className="font-semibold" style={{ color: '#f0fdf4' }}>{apt.doctor?.user.name}</p>
-                                    <p className="text-xs mb-1" style={{ color: '#34d399' }}>{apt.doctor?.specialty}</p>
+                                    <p className="font-semibold" style={{ color: '#f0fdf4' }}>{apt.doctor?.user?.name || (apt.doctor as any)?.name || 'Dr. Specialist'}</p>
+                                    <p className="text-xs mb-1" style={{ color: '#34d399' }}>{apt.doctor?.specialty || 'Siddha Specialist'}</p>
                                     <p className="text-sm" style={{ color: '#a7c4b8' }}>
                                         📅 {new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                                         {' '}at {apt.time}

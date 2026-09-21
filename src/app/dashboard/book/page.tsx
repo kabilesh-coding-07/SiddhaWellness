@@ -7,8 +7,9 @@ import { useLanguage } from '@/i18n';
 
 interface Doctor {
     id: string;
-    specialty: string;
-    user: { name: string };
+    specialty?: string;
+    user?: { name?: string };
+    name?: string;
 }
 
 const timeSlots = [
@@ -19,7 +20,7 @@ const timeSlots = [
 
 import { supabase } from '@/lib/supabase';
 
-const defaultDoctors = [
+const defaultDoctors: Doctor[] = [
     { id: '1', specialty: 'Varmam & Pain Management', user: { name: 'Dr. Kavitha Rajan' } },
     { id: '2', specialty: 'Herbal Medicine', user: { name: 'Dr. Senthil Kumar' } },
     { id: '3', specialty: "Women's Health & Fertility", user: { name: 'Dr. Priya Lakshmi' } },
@@ -45,6 +46,7 @@ export default function BookAppointmentPage() {
                     .select('*, user:users(name)');
                 if (!error && data && data.length > 0) {
                     setDoctors(data);
+                    setForm((prev) => ({ ...prev, doctorId: data[0].id }));
                 }
             } catch (err) {
                 console.error('Error loading doctors:', err);
@@ -59,6 +61,9 @@ export default function BookAppointmentPage() {
         setError('');
 
         const selectedDoc = doctors.find(d => d.id === form.doctorId) || doctors[0];
+        const docName = selectedDoc?.user?.name || (selectedDoc as any)?.name || 'Dr. Kavitha Rajan';
+        const docSpecialty = selectedDoc?.specialty || 'Siddha Consultation';
+
         const newApt = {
             id: 'apt_' + Date.now(),
             doctorId: form.doctorId,
@@ -67,8 +72,8 @@ export default function BookAppointmentPage() {
             symptoms: form.symptoms,
             status: 'PENDING',
             doctor: {
-                specialty: selectedDoc.specialty,
-                user: { name: selectedDoc.user.name }
+                specialty: docSpecialty,
+                user: { name: docName }
             },
             createdAt: new Date().toISOString()
         };
@@ -135,19 +140,23 @@ export default function BookAppointmentPage() {
                             <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('book.loadingDoctors')}</p>
                         ) : (
                             <div className="grid sm:grid-cols-2 gap-3">
-                                {doctors.map((doc) => (
-                                    <label key={doc.id}
-                                        className={`p-4 rounded-xl cursor-pointer transition-all ${form.doctorId === doc.id ? 'border-emerald-500 shadow-lg' : ''}`}
-                                        style={{
-                                            background: form.doctorId === doc.id ? 'rgba(4,120,87,0.15)' : 'rgba(4,120,87,0.05)',
-                                            border: `1px solid ${form.doctorId === doc.id ? '#059669' : 'rgba(4,120,87,0.1)'}`,
-                                        }}>
-                                        <input type="radio" name="doctor" value={doc.id} className="hidden"
-                                            onChange={() => setForm({ ...form, doctorId: doc.id })} required />
-                                        <p className="font-semibold text-sm" style={{ color: '#f0fdf4' }}>{doc.user.name}</p>
-                                        <p className="text-xs" style={{ color: '#6b8f7e' }}>{doc.specialty}</p>
-                                    </label>
-                                ))}
+                                {doctors.map((doc) => {
+                                    const name = doc.user?.name || (doc as any).name || 'Dr. Specialist';
+                                    const specialty = doc.specialty || 'Siddha Specialist';
+                                    return (
+                                        <label key={doc.id}
+                                            className={`p-4 rounded-xl cursor-pointer transition-all ${form.doctorId === doc.id ? 'border-emerald-500 shadow-lg' : ''}`}
+                                            style={{
+                                                background: form.doctorId === doc.id ? 'rgba(4,120,87,0.15)' : 'rgba(4,120,87,0.05)',
+                                                border: `1px solid ${form.doctorId === doc.id ? '#059669' : 'rgba(4,120,87,0.1)'}`,
+                                            }}>
+                                            <input type="radio" name="doctor" value={doc.id} className="hidden"
+                                                onChange={() => setForm({ ...form, doctorId: doc.id })} required />
+                                            <p className="font-semibold text-sm" style={{ color: '#f0fdf4' }}>{name}</p>
+                                            <p className="text-xs" style={{ color: '#6b8f7e' }}>{specialty}</p>
+                                        </label>
+                                    );
+                                })}
                             </div>
                         )}
                     </div>

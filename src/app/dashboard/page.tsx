@@ -150,7 +150,7 @@ export default function DashboardPage() {
                                     </div>
                                     <div>
                                         <p className="font-semibold text-sm" style={{ color: '#f0fdf4' }}>
-                                            {apt.doctor?.user.name || 'Doctor'}
+                                            {apt.doctor?.user?.name || (apt.doctor as any)?.name || 'Doctor'}
                                         </p>
                                         <p className="text-xs" style={{ color: '#6b8f7e' }}>
                                             {new Date(apt.date).toLocaleDateString()} at {apt.time}

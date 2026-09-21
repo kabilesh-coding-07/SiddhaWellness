@@ -65,12 +65,12 @@ export default function DoctorsPage() {
                             <Link key={d.id} href={`/doctors/${d.id}`} className="glass-card p-8 text-center group block">
                                 <div className="w-28 h-28 rounded-full mx-auto mb-5 flex items-center justify-center text-6xl"
                                     style={{ background: 'rgba(4,120,87,0.15)', border: '2px solid rgba(4,120,87,0.3)' }}>
-                                    {d.user.image ? <img src={d.user.image} alt={d.user.name} className="w-full h-full rounded-full object-cover" /> : '👨‍⚕️'}
+                                    {d.user?.image ? <img src={d.user.image} alt={d.user?.name || 'Doctor'} className="w-full h-full rounded-full object-cover" /> : '👨‍⚕️'}
                                 </div>
-                                <h3 className="text-xl font-semibold mb-1" style={{ color: '#f0fdf4' }}>{d.user.name}</h3>
-                                <p className="text-sm font-medium mb-1" style={{ color: '#34d399' }}>{d.specialty}</p>
-                                <p className="text-xs mb-4" style={{ color: '#6b8f7e' }}>{d.experience} {t('common.yearsExp')}</p>
-                                <p className="text-sm leading-relaxed mb-5" style={{ color: '#a7c4b8' }}>{d.bio}</p>
+                                <h3 className="text-xl font-semibold mb-1" style={{ color: '#f0fdf4' }}>{d.user?.name || (d as any)?.name || 'Doctor'}</h3>
+                                <p className="text-sm font-medium mb-1" style={{ color: '#34d399' }}>{d.specialty || 'Siddha Specialist'}</p>
+                                <p className="text-xs mb-4" style={{ color: '#6b8f7e' }}>{d.experience || 10} {t('common.yearsExp')}</p>
+                                <p className="text-sm leading-relaxed mb-5" style={{ color: '#a7c4b8' }}>{d.bio || ''}</p>
                                 <span className="btn-primary text-sm py-2 px-6">{t('common.viewProfile')}</span>
                             </Link>
                         ))}

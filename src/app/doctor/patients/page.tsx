@@ -59,10 +59,10 @@ export default function PatientsPage() {
                         } else {
                             patientMap.set(apt.userId, {
                                 id: apt.userId,
-                                name: apt.user.name,
-                                email: apt.user.email,
-                                phone: apt.user.phone,
-                                medicalHistory: apt.user.medicalHistory,
+                                name: apt.user?.name || 'Patient',
+                                email: apt.user?.email || '',
+                                phone: apt.user?.phone || '',
+                                medicalHistory: apt.user?.medicalHistory || '',
                                 lastVisit: apt.date,
                                 totalVisits: 1,
                                 symptoms: apt.symptoms || t('doctor.consultation'),
