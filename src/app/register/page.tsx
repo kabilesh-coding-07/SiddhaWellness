@@ -3,12 +3,14 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import { useLanguage } from '@/i18n';
-import { createClient } from '@/utils/supabase/client';
+import { useUser } from '@/providers/user-context';
 
 export default function RegisterPage() {
     const router = useRouter();
     const { t } = useLanguage();
+    const { loginDemoUser } = useUser();
     const supabase = createClient();
     const [form, setForm] = useState({ name: '', email: '', password: '', phone: '', confirmPassword: '' });
     const [error, setError] = useState('');
@@ -19,6 +21,16 @@ export default function RegisterPage() {
     const handleGoogleSignUp = async () => {
         setOauthLoading(true);
         setError('');
+
+        if (!isSupabaseConfigured()) {
+            // Smooth instant Google sign-up fallback when Supabase keys are not set
+            loginDemoUser('USER', 'Ananya Sharma (Google)', 'ananya.sharma@gmail.com');
+            setTimeout(() => {
+                router.push('/dashboard');
+            }, 600);
+            return;
+        }
+
         try {
             const redirectUrl = typeof window !== 'undefined' 
                 ? `${window.location.origin}/auth/callback` 
@@ -59,6 +71,14 @@ export default function RegisterPage() {
         if (form.password !== form.confirmPassword) {
             setError(t('errors.passwordsMismatch') || 'Passwords do not match');
             setLoading(false);
+            return;
+        }
+
+        if (!isSupabaseConfigured()) {
+            loginDemoUser('USER', form.name.trim() || 'New Patient', form.email.trim());
+            setTimeout(() => {
+                router.push('/dashboard');
+            }, 600);
             return;
         }
 

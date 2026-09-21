@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { createClient } from '@/utils/supabase/client';
+import { createClient, isSupabaseConfigured } from '@/utils/supabase/client';
 import { useLanguage } from '@/i18n';
 import { useUser } from '@/providers/user-context';
 
@@ -42,6 +42,16 @@ function LoginForm() {
     const handleGoogleLogin = async () => {
         setOauthLoading(true);
         setError('');
+
+        if (!isSupabaseConfigured()) {
+            // Smooth instant Google sign-in fallback when Supabase keys are not set
+            loginDemoUser('USER', 'Ananya Sharma (Google)', 'ananya.sharma@gmail.com');
+            setTimeout(() => {
+                router.push('/dashboard');
+            }, 600);
+            return;
+        }
+
         try {
             const redirectUrl = typeof window !== 'undefined' 
                 ? `${window.location.origin}/auth/callback` 
