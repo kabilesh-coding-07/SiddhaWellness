@@ -64,16 +64,34 @@ export default function BookAppointmentPage() {
         const docName = selectedDoc?.user?.name || (selectedDoc as any)?.name || 'Dr. Kavitha Rajan';
         const docSpecialty = selectedDoc?.specialty || 'Siddha Consultation';
 
+        let patientName = 'Kabilesh';
+        let patientEmail = 'kabileshcoding07@gmail.com';
+        let patientPhone = '+91 98765 43210';
+
+        try {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                patientName = session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Patient';
+                patientEmail = session.user.email || 'patient@example.com';
+                patientPhone = session.user.user_metadata?.phone || '+91 98765 43210';
+            }
+        } catch { }
+
         const newApt = {
             id: 'apt_' + Date.now(),
             doctorId: form.doctorId,
             date: form.date,
             time: form.time,
-            symptoms: form.symptoms,
+            symptoms: form.symptoms || 'General Health Consultation',
             status: 'PENDING',
             doctor: {
                 specialty: docSpecialty,
                 user: { name: docName }
+            },
+            user: {
+                name: patientName,
+                email: patientEmail,
+                phone: patientPhone
             },
             createdAt: new Date().toISOString()
         };
@@ -97,13 +115,19 @@ export default function BookAppointmentPage() {
             // Supabase offline/unconfigured fallback
         }
 
-        // Save locally for instant reactivity
+        // Save locally for instant patient dashboard reactivity
         try {
             const existing = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
             localStorage.setItem('siddha_appointments', JSON.stringify([newApt, ...existing]));
         } catch {
             // storage error
         }
+
+        // Sync immediately into doctor clinical queue
+        try {
+            const portalQueue = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+            localStorage.setItem('siddha_portal_appointments', JSON.stringify([newApt, ...portalQueue]));
+        } catch { }
 
         setLoading(false);
         setSuccess(true);

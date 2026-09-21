@@ -58,8 +58,15 @@ export default function PortalPatientsPage() {
 
     useEffect(() => {
         const loadPatients = async () => {
+            const patientMap = new Map<string, Patient>();
+
+            // Default demo baseline patients
+            for (const p of defaultDemoPatients) {
+                patientMap.set(p.id, p);
+            }
+
             try {
-                if (user) {
+                if (user && user.id !== 'demo_doc_1') {
                     const { data: doctor } = await supabase
                         .from('doctors')
                         .select('id')
@@ -73,7 +80,6 @@ export default function PortalPatientsPage() {
                             .eq('doctorId', doctor.id);
 
                         if (!error && appts && appts.length > 0) {
-                            const patientMap = new Map<string, Patient>();
                             for (const apt of appts) {
                                 if (!apt.user) continue;
                                 const existing = patientMap.get(apt.userId);
@@ -96,15 +102,50 @@ export default function PortalPatientsPage() {
                                     });
                                 }
                             }
-                            const list = Array.from(patientMap.values());
-                            if (list.length > 0) {
-                                setPatients(list);
-                                setSelectedPatient(list[0]);
-                            }
                         }
                     }
                 }
             } catch { }
+
+            // Extract from local bookings (e.g. Kabilesh)
+            try {
+                const localApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+                const allApts = [...localApts, ...portalApts];
+
+                for (const apt of allApts) {
+                    const pName = apt.user?.name || (apt.doctor?.user?.name ? 'Kabilesh' : null);
+                    if (!pName || pName === 'Dr. Kavitha Rajan' || pName.startsWith('Dr.')) continue;
+                    const pEmail = apt.user?.email || 'kabileshcoding07@gmail.com';
+                    const key = pEmail || pName;
+
+                    const existing = patientMap.get(key);
+                    if (existing) {
+                        existing.totalVisits++;
+                        if (new Date(apt.date) > new Date(existing.lastVisit)) {
+                            existing.lastVisit = apt.date;
+                            existing.symptoms = apt.symptoms || existing.symptoms;
+                        }
+                    } else {
+                        patientMap.set(key, {
+                            id: key,
+                            name: pName,
+                            email: pEmail,
+                            phone: apt.user?.phone || '+91 98765 43210',
+                            medicalHistory: 'Registered patient. Active Siddha consultation regimen booked online.',
+                            lastVisit: apt.date || new Date().toISOString().split('T')[0],
+                            totalVisits: 1,
+                            symptoms: apt.symptoms || 'Detox & Rejuvenation / Consultation',
+                        });
+                    }
+                }
+            } catch { }
+
+            const list = Array.from(patientMap.values());
+            if (list.length > 0) {
+                setPatients(list);
+                setSelectedPatient(list[0]);
+            }
         };
 
         loadPatients();
