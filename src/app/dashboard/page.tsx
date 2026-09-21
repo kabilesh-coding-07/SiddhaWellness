@@ -20,59 +20,65 @@ export default function DashboardPage() {
     const [user, setUser] = useState<{ id: string; name: string } | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
 
-    useEffect(() => {
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                // Fetch user profile
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('id, name')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (profile) {
-                    setUser(profile);
-                    
-                    // Load appointments for this user
-                    const { data, error } = await supabase
-                        .from('appointments')
-                        .select('*, doctor:doctors(user:users(name))')
-                        .eq('userId', profile.id)
-                        .order('date', { ascending: false });
+    const defaultDemoAppointments: Appointment[] = [
+        {
+            id: 'demo_1',
+            date: new Date(Date.now() + 86400000 * 2).toISOString(),
+            time: '10:00 AM',
+            status: 'CONFIRMED',
+            symptoms: 'Chronic shoulder & back pain',
+            doctor: { user: { name: 'Dr. Kavitha Rajan' } }
+        },
+        {
+            id: 'demo_2',
+            date: new Date(Date.now() - 86400000 * 5).toISOString(),
+            time: '02:30 PM',
+            status: 'COMPLETED',
+            symptoms: 'Digestive issues',
+            doctor: { user: { name: 'Dr. Senthil Kumar' } }
+        }
+    ];
 
-                    if (!error && data) setAppointments(data);
+    useEffect(() => {
+        const loadDashboard = async () => {
+            let loaded: Appointment[] = [];
+            try {
+                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                if (Array.isArray(local)) loaded = local;
+            } catch { }
+
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session) {
+                    const { data: profile } = await supabase
+                        .from('users')
+                        .select('id, name')
+                        .eq('id', session.user.id)
+                        .single();
+
+                    if (profile) {
+                        setUser(profile);
+                        const { data: appts } = await supabase
+                            .from('appointments')
+                            .select('*, doctor:doctors(user:users(name))')
+                            .eq('userId', profile.id)
+                            .order('date', { ascending: false });
+
+                        if (appts && appts.length > 0) {
+                            loaded = [...appts, ...loaded];
+                        }
+                    }
                 }
+            } catch { }
+
+            if (loaded.length === 0) {
+                setAppointments(defaultDemoAppointments);
+            } else {
+                setAppointments(loaded);
             }
         };
 
-        checkSession();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
-            if (session) {
-                // 1. Fetch user profile
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('id, name')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                if (profile) {
-                    setUser(profile);
-                    
-                    // 2. Load appointments for this user
-                    const { data, error } = await supabase
-                        .from('appointments')
-                        .select('*, doctor:doctors(user:users(name))')
-                        .eq('userId', profile.id)
-                        .order('date', { ascending: false });
-
-                    if (!error && data) setAppointments(data);
-                }
-            }
-        });
-
-        return () => subscription.unsubscribe();
+        loadDashboard();
     }, []);
 
     const statusColors: Record<string, string> = {

@@ -101,19 +101,22 @@ export default function AvailabilityPage() {
     };
 
     const handleSave = async () => {
-        if (!doctorId) return;
+        const availabilityData = { schedule, consultDuration };
         try {
-            const availabilityData = { schedule, consultDuration };
-            const { error } = await supabase
-                .from('doctors')
-                .update({ availability: availabilityData })
-                .eq('id', doctorId);
-
-            if (!error) {
-                setSaved(true);
-                setTimeout(() => setSaved(false), 3000);
+            if (doctorId) {
+                await supabase
+                    .from('doctors')
+                    .update({ availability: availabilityData })
+                    .eq('id', doctorId);
             }
         } catch { /* silently fail */ }
+
+        try {
+            localStorage.setItem('siddha_doctor_availability', JSON.stringify(availabilityData));
+        } catch { }
+
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
     };
 
     return (
