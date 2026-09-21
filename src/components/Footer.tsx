@@ -84,7 +84,13 @@ export default function Footer() {
             <div className="border-t" style={{ borderColor: 'rgba(4,120,87,0.1)' }}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col md:flex-row items-center justify-between gap-4">
                     <p className="text-xs" style={{ color: '#4a6658' }}>{t('footer.rights')}</p>
-                    <p className="text-xs" style={{ color: '#4a6658' }}>{t('footer.madeWith')}</p>
+                    <div className="flex items-center gap-6">
+                        <Link href="/portal/login" className="text-xs transition-colors hover:text-emerald-400 flex items-center gap-1.5" style={{ color: '#6b8f7e' }}>
+                            <span>🩺</span>
+                            <span>Doctor & Staff Portal</span>
+                        </Link>
+                        <p className="text-xs" style={{ color: '#4a6658' }}>{t('footer.madeWith')}</p>
+                    </div>
                 </div>
             </div>
         </footer>

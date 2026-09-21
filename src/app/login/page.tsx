@@ -5,10 +5,7 @@ import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useLanguage } from '@/i18n';
-
 import { useUser } from '@/providers/user-context';
-
-type LoginMode = 'patient' | 'doctor';
 
 function LoginForm() {
     const router = useRouter();
@@ -16,7 +13,6 @@ function LoginForm() {
     const { t } = useLanguage();
     const { loginDemoUser } = useUser();
     const supabase = createClient();
-    const [mode, setMode] = useState<LoginMode>('patient');
     const [form, setForm] = useState({ email: '', password: '' });
     const [error, setError] = useState('');
     const [infoMsg, setInfoMsg] = useState('');
@@ -36,26 +32,9 @@ function LoginForm() {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
-                    let profile: { role: string } | null = null;
-                    for (let i = 0; i < 3; i++) {
-                        const { data: p } = await supabase
-                            .from('users')
-                            .select('role')
-                            .eq('id', session.user.id)
-                            .single();
-                        if (p) {
-                            profile = p;
-                            break;
-                        }
-                        await new Promise(resolve => setTimeout(resolve, 300));
-                    }
-                    
-                    const role = profile?.role || session.user.user_metadata?.role || 'USER';
-                    router.push(role === 'DOCTOR' ? '/doctor' : '/dashboard');
+                    router.push('/dashboard');
                 }
-            } catch {
-                // Ignore session check errors
-            }
+            } catch { }
         };
         checkSession();
     }, [router, supabase]);
@@ -89,15 +68,10 @@ function LoginForm() {
         }
     };
 
-    const handleDemoLogin = (role: 'patient' | 'doctor') => {
+    const handlePatientDemo = () => {
         setLoading(true);
-        if (role === 'doctor') {
-            loginDemoUser('DOCTOR', 'Dr. Kavitha Rajan', 'dr.kavitha@siddhawellness.in');
-            router.push('/doctor');
-        } else {
-            loginDemoUser('USER', 'Ananya Sharma', 'ananya@example.com');
-            router.push('/dashboard');
-        }
+        loginDemoUser('USER', 'Ananya Sharma', 'ananya@example.com');
+        router.push('/dashboard');
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -107,42 +81,19 @@ function LoginForm() {
         setInfoMsg('');
 
         try {
-            const { data, error: signInError } = await supabase.auth.signInWithPassword({
+            const { error: signInError } = await supabase.auth.signInWithPassword({
                 email: form.email.trim(),
                 password: form.password,
             });
 
             if (signInError) {
                 if (signInError.message.toLowerCase().includes('invalid login credentials')) {
-                    throw new Error('Invalid email or password. You can also use the Quick Demo buttons below.');
+                    throw new Error('Invalid email or password. You can also use the 1-Click Patient Demo below.');
                 }
                 throw signInError;
             }
 
-            let profile: { role: string } | null = null;
-            if (data?.user) {
-                for (let i = 0; i < 3; i++) {
-                    const { data: p } = await supabase
-                        .from('users')
-                        .select('role')
-                        .eq('id', data.user.id)
-                        .single();
-                    if (p) {
-                        profile = p;
-                        break;
-                    }
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                }
-            }
-
-            const role = profile?.role || data.user?.user_metadata?.role || (mode === 'doctor' ? 'DOCTOR' : 'USER');
-            
-            if (mode === 'doctor' && role !== 'DOCTOR') {
-                await supabase.auth.signOut();
-                throw new Error(t('errors.notADoctor') || 'This account does not have doctor privileges.');
-            }
-
-            router.push(role === 'DOCTOR' ? '/doctor' : '/dashboard');
+            router.push('/dashboard');
         } catch (err: unknown) {
             setError(err instanceof Error ? err.message : (t('errors.loginFailed') || 'Login failed'));
         } finally {
@@ -161,41 +112,10 @@ function LoginForm() {
                     <span className="text-xl font-bold gradient-text">SiddhaWellness</span>
                 </Link>
                 <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>{t('login.welcomeBack')}</h1>
-                <p className="text-sm" style={{ color: '#a7c4b8' }}>{mode === 'doctor' ? t('login.doctorSubtitle') : t('login.patientSubtitle')}</p>
+                <p className="text-sm" style={{ color: '#a7c4b8' }}>Sign in to manage your appointments, health records, and treatment plans.</p>
             </div>
 
-            {/* Role Toggle */}
-            <div className="flex mb-6 rounded-xl overflow-hidden p-1" style={{ background: 'rgba(4,120,87,0.08)', border: '1px solid rgba(4,120,87,0.15)' }}>
-                <button onClick={() => { setMode('patient'); setError(''); setInfoMsg(''); }}
-                    type="button"
-                    className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-lg transition-all duration-300"
-                    style={{ background: mode === 'patient' ? 'linear-gradient(135deg, #047857, #065f46)' : 'transparent', color: mode === 'patient' ? '#f0fdf4' : '#6b8f7e' }}>
-                    <span className="text-lg">👤</span> {t('login.patientLogin')}
-                </button>
-                <button onClick={() => { setMode('doctor'); setError(''); setInfoMsg(''); }}
-                    type="button"
-                    className="flex-1 flex items-center justify-center gap-2 py-3 text-sm font-semibold rounded-lg transition-all duration-300"
-                    style={{ background: mode === 'doctor' ? 'linear-gradient(135deg, #0e7490, #155e75)' : 'transparent', color: mode === 'doctor' ? '#f0fdf4' : '#6b8f7e' }}>
-                    <span className="text-lg">🩺</span> {t('login.doctorLogin')}
-                </button>
-            </div>
-
-            <div className="glass-card p-8" style={{ borderColor: mode === 'doctor' ? 'rgba(14,116,144,0.3)' : undefined }}>
-                <div className="flex items-center gap-3 mb-5 pb-4" style={{ borderBottom: '1px solid rgba(4,120,87,0.1)' }}>
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base"
-                        style={{ background: mode === 'doctor' ? 'rgba(14,116,144,0.2)' : 'rgba(4,120,87,0.15)', color: mode === 'doctor' ? '#22d3ee' : '#34d399' }}>
-                        {mode === 'doctor' ? '🩺' : '👤'}
-                    </div>
-                    <div>
-                        <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>
-                            {mode === 'doctor' ? t('login.doctorPortal') : t('login.patientPortal')}
-                        </p>
-                        <p className="text-xs" style={{ color: '#6b8f7e' }}>
-                            {mode === 'doctor' ? t('login.doctorPortalDesc') : t('login.patientPortalDesc')}
-                        </p>
-                    </div>
-                </div>
-
+            <div className="glass-card p-8">
                 {infoMsg && (
                     <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(59,130,246,0.15)', color: '#60a5fa', border: '1px solid rgba(59,130,246,0.3)' }}>
                         ℹ️ {infoMsg}
@@ -210,9 +130,9 @@ function LoginForm() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="form-label">{mode === 'doctor' ? t('login.doctorEmailLabel') : t('login.emailLabel')}</label>
+                        <label className="form-label">{t('login.emailLabel')}</label>
                         <input type="email" className="form-input"
-                            placeholder={mode === 'doctor' ? 'doctor@siddhawellness.in' : 'you@example.com'}
+                            placeholder="you@example.com"
                             value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
                     </div>
                     <div>
@@ -227,11 +147,7 @@ function LoginForm() {
                             value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
                     </div>
                     <button type="submit" disabled={loading}
-                        className="w-full justify-center py-3 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 cursor-pointer mt-2"
-                        style={{
-                            background: mode === 'doctor' ? 'linear-gradient(135deg, #0e7490, #155e75)' : 'linear-gradient(135deg, #047857, #065f46)',
-                            color: '#f0fdf4', opacity: loading ? 0.7 : 1,
-                        }}>
+                        className="btn-primary w-full justify-center py-3.5 mt-2 cursor-pointer">
                         {loading ? (
                             <span className="inline-flex items-center gap-2">
                                 <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -240,7 +156,7 @@ function LoginForm() {
                                 </svg>
                                 {t('login.signingIn')}
                             </span>
-                        ) : mode === 'doctor' ? t('login.signInDoctor') : t('login.signIn')}
+                        ) : t('login.signIn')}
                     </button>
                 </form>
 
@@ -274,27 +190,30 @@ function LoginForm() {
                     )}
                 </button>
 
-                {/* Instant 1-Click Demo Buttons */}
+                {/* 1-Click Patient Demo */}
                 <div className="mt-5 pt-5" style={{ borderTop: '1px solid rgba(4,120,87,0.15)' }}>
-                    <p className="text-xs text-center mb-3 font-medium" style={{ color: '#d4a017' }}>⚡ 1-Click Instant Preview</p>
-                    <div className="grid grid-cols-2 gap-2">
-                        <button type="button" onClick={() => handleDemoLogin('patient')}
-                            className="py-2 px-3 rounded-lg text-xs font-semibold transition-all hover:bg-emerald-900/40"
-                            style={{ background: 'rgba(4,120,87,0.1)', color: '#34d399', border: '1px solid rgba(4,120,87,0.2)' }}>
-                            👤 Patient Demo
-                        </button>
-                        <button type="button" onClick={() => handleDemoLogin('doctor')}
-                            className="py-2 px-3 rounded-lg text-xs font-semibold transition-all hover:bg-cyan-900/40"
-                            style={{ background: 'rgba(14,116,144,0.1)', color: '#22d3ee', border: '1px solid rgba(14,116,144,0.2)' }}>
-                            🩺 Doctor Demo
-                        </button>
-                    </div>
+                    <button type="button" onClick={handlePatientDemo}
+                        className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold transition-all hover:bg-emerald-900/40 flex items-center justify-center gap-2"
+                        style={{ background: 'rgba(4,120,87,0.1)', color: '#34d399', border: '1px solid rgba(4,120,87,0.25)' }}>
+                        <span>⚡</span>
+                        <span>1-Click Patient Demo Access</span>
+                    </button>
                 </div>
 
                 <p className="text-center text-sm mt-5" style={{ color: '#6b8f7e' }}>
                     {t('login.noAccount')}{' '}
                     <Link href="/register" className="font-semibold hover:text-emerald-300" style={{ color: '#34d399' }}>{t('login.registerHere')}</Link>
                 </p>
+
+                {/* Staff Portal Link */}
+                <div className="mt-6 pt-4 text-center border-t" style={{ borderColor: 'rgba(4,120,87,0.1)' }}>
+                    <p className="text-xs" style={{ color: '#6b8f7e' }}>
+                        Clinic Doctor or Staff?{' '}
+                        <Link href="/portal/login" className="font-semibold hover:underline" style={{ color: '#d4a017' }}>
+                            Clinic Portal Login →
+                        </Link>
+                    </p>
+                </div>
             </div>
         </div>
     );
