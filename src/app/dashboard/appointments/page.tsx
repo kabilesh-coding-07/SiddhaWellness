@@ -65,11 +65,6 @@ export default function AppointmentsPage() {
         const loadAppointments = async () => {
             let loaded: Appointment[] = [];
             try {
-                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-                if (Array.isArray(local)) loaded = local;
-            } catch { }
-
-            try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
                     const { data, error } = await supabase
@@ -79,16 +74,19 @@ export default function AppointmentsPage() {
                         .order('date', { ascending: false });
 
                     if (!error && data && data.length > 0) {
-                        loaded = [...data, ...loaded];
+                        loaded = data;
                     }
                 }
             } catch { }
 
-            if (loaded.length === 0) {
-                setAppointments(defaultDemoAppointments);
-            } else {
-                setAppointments(loaded);
-            }
+            try {
+                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                if (Array.isArray(local) && local.length > 0) {
+                    loaded = [...loaded, ...local];
+                }
+            } catch { }
+
+            setAppointments(loaded);
         };
 
         loadAppointments();

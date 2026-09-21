@@ -42,14 +42,12 @@ export default function DashboardPage() {
     useEffect(() => {
         const loadDashboard = async () => {
             let loaded: Appointment[] = [];
-            try {
-                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-                if (Array.isArray(local)) loaded = local;
-            } catch { }
+            let isRealUser = false;
 
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (session) {
+                    isRealUser = true;
                     const { data: profile } = await supabase
                         .from('users')
                         .select('id, name')
@@ -58,24 +56,34 @@ export default function DashboardPage() {
 
                     if (profile) {
                         setUser(profile);
-                        const { data: appts } = await supabase
-                            .from('appointments')
-                            .select('*, doctor:doctors(user:users(name))')
-                            .eq('userId', profile.id)
-                            .order('date', { ascending: false });
+                    } else {
+                        setUser({
+                            id: session.user.id,
+                            name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Patient'
+                        });
+                    }
 
-                        if (appts && appts.length > 0) {
-                            loaded = [...appts, ...loaded];
-                        }
+                    const { data: appts } = await supabase
+                        .from('appointments')
+                        .select('*, doctor:doctors(user:users(name))')
+                        .eq('userId', session.user.id)
+                        .order('date', { ascending: false });
+
+                    if (appts && appts.length > 0) {
+                        loaded = appts;
                     }
                 }
             } catch { }
 
-            if (loaded.length === 0) {
-                setAppointments(defaultDemoAppointments);
-            } else {
-                setAppointments(loaded);
-            }
+            // If local storage has user-booked appointments
+            try {
+                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                if (Array.isArray(local) && local.length > 0) {
+                    loaded = [...loaded, ...local];
+                }
+            } catch { }
+
+            setAppointments(loaded);
         };
 
         loadDashboard();
@@ -94,7 +102,7 @@ export default function DashboardPage() {
             {/* Welcome */}
             <div className="mb-8">
                 <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>
-                    {t('dashboard.welcomeBack')} <span className="gradient-text">{user?.name || 'User'}</span>
+                    Welcome, <span className="gradient-text">{user?.name || 'Patient'}</span>
                 </h1>
                 <p className="text-sm" style={{ color: '#6b8f7e' }}>{t('dashboard.manageJourney')}</p>
             </div>
