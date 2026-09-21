@@ -55,7 +55,7 @@ export default function PortalAppointmentsPage() {
         const loadAppointments = async () => {
             let loaded: Appointment[] = [];
             try {
-                if (user) {
+                if (user && user.id !== 'demo_doc_1') {
                     const { data: doctor } = await supabase
                         .from('doctors')
                         .select('id')
@@ -76,10 +76,46 @@ export default function PortalAppointmentsPage() {
                 }
             } catch { }
 
+            // Load persistent doctor portal queue from local storage
+            try {
+                const local = JSON.parse(localStorage.getItem('siddha_portal_appointments') || 'null');
+                if (Array.isArray(local) && local.length > 0) {
+                    loaded = local;
+                }
+            } catch { }
+
+            // Also check for any appointments booked by patients
+            try {
+                const patientBookings = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                if (Array.isArray(patientBookings) && patientBookings.length > 0) {
+                    const existingIds = new Set(loaded.map((a) => a.id));
+                    const newBookings = patientBookings
+                        .filter((pb: any) => !existingIds.has(pb.id))
+                        .map((pb: any) => ({
+                            id: pb.id,
+                            date: pb.date,
+                            time: pb.time,
+                            status: pb.status || 'PENDING',
+                            symptoms: pb.symptoms || 'General Consultation',
+                            notes: pb.notes || '',
+                            user: { name: pb.doctor?.user?.name ? 'Patient (Self-Booked)' : 'Patient', email: 'patient@example.com', phone: '+91 98765 43210' }
+                        }));
+                    if (newBookings.length > 0) {
+                        loaded = [...newBookings, ...loaded];
+                    }
+                }
+            } catch { }
+
             if (loaded.length === 0) {
                 setAppointments(defaultDoctorAppointments);
+                try {
+                    localStorage.setItem('siddha_portal_appointments', JSON.stringify(defaultDoctorAppointments));
+                } catch { }
             } else {
                 setAppointments(loaded);
+                try {
+                    localStorage.setItem('siddha_portal_appointments', JSON.stringify(loaded));
+                } catch { }
             }
         };
 
@@ -94,7 +130,22 @@ export default function PortalAppointmentsPage() {
                 .eq('id', id);
         } catch { }
 
-        setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status } : a));
+        setAppointments((prev) => {
+            const updated = prev.map((a) => a.id === id ? { ...a, status } : a);
+            try {
+                localStorage.setItem('siddha_portal_appointments', JSON.stringify(updated));
+            } catch { }
+            return updated;
+        });
+
+        // Synchronize with patient appointments storage
+        try {
+            const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+            if (Array.isArray(patientApts)) {
+                const updatedPatients = patientApts.map((a: any) => a.id === id ? { ...a, status } : a);
+                localStorage.setItem('siddha_appointments', JSON.stringify(updatedPatients));
+            }
+        } catch { }
     };
 
     const saveNote = async (id: string) => {
@@ -105,7 +156,22 @@ export default function PortalAppointmentsPage() {
                 .eq('id', id);
         } catch { }
 
-        setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, notes: noteText } : a));
+        setAppointments((prev) => {
+            const updated = prev.map((a) => a.id === id ? { ...a, notes: noteText } : a);
+            try {
+                localStorage.setItem('siddha_portal_appointments', JSON.stringify(updated));
+            } catch { }
+            return updated;
+        });
+
+        try {
+            const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+            if (Array.isArray(patientApts)) {
+                const updatedPatients = patientApts.map((a: any) => a.id === id ? { ...a, notes: noteText } : a);
+                localStorage.setItem('siddha_appointments', JSON.stringify(updatedPatients));
+            }
+        } catch { }
+
         setNoteModal(null);
         setNoteText('');
     };

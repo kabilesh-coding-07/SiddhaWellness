@@ -47,8 +47,9 @@ export default function PortalDashboard() {
 
     useEffect(() => {
         const loadDoctorData = async () => {
+            let loaded: Appointment[] = [];
             try {
-                if (user) {
+                if (user && user.id !== 'demo_doc_1') {
                     const { data: doctor } = await supabase
                         .from('doctors')
                         .select('id')
@@ -63,11 +64,49 @@ export default function PortalDashboard() {
                             .order('date', { ascending: false });
 
                         if (appts && appts.length > 0) {
-                            setAppointments(appts);
+                            loaded = appts;
                         }
                     }
                 }
             } catch { }
+
+            // Load persistent doctor portal queue from local storage
+            try {
+                const local = JSON.parse(localStorage.getItem('siddha_portal_appointments') || 'null');
+                if (Array.isArray(local) && local.length > 0) {
+                    loaded = local;
+                }
+            } catch { }
+
+            // Also check for any appointments booked by patients
+            try {
+                const patientBookings = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                if (Array.isArray(patientBookings) && patientBookings.length > 0) {
+                    const existingIds = new Set(loaded.map((a) => a.id));
+                    const newBookings = patientBookings
+                        .filter((pb: any) => !existingIds.has(pb.id))
+                        .map((pb: any) => ({
+                            id: pb.id,
+                            date: pb.date,
+                            time: pb.time,
+                            status: pb.status || 'PENDING',
+                            symptoms: pb.symptoms || 'General Consultation',
+                            user: { name: pb.doctor?.user?.name ? 'Patient (Self-Booked)' : 'Patient', phone: '+91 98765 43210' }
+                        }));
+                    if (newBookings.length > 0) {
+                        loaded = [...newBookings, ...loaded];
+                    }
+                }
+            } catch { }
+
+            if (loaded.length === 0) {
+                setAppointments(defaultDemoQueue);
+                try {
+                    localStorage.setItem('siddha_portal_appointments', JSON.stringify(defaultDemoQueue));
+                } catch { }
+            } else {
+                setAppointments(loaded);
+            }
         };
 
         loadDoctorData();
