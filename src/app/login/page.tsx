@@ -42,10 +42,12 @@ function LoginForm() {
     const handleGoogleLogin = async () => {
         setOauthLoading(true);
         setError('');
+        try {
+            localStorage.removeItem('siddha_demo_user');
+        } catch { }
 
         if (!isSupabaseConfigured()) {
-            // Smooth instant Google sign-in fallback when Supabase keys are not set
-            loginDemoUser('USER', 'Ananya Sharma (Google)', 'ananya.sharma@gmail.com');
+            loginDemoUser('USER', 'Kabilesh', 'kabileshcoding07@gmail.com');
             setTimeout(() => {
                 router.push('/dashboard');
             }, 600);
@@ -80,7 +82,7 @@ function LoginForm() {
 
     const handlePatientDemo = () => {
         setLoading(true);
-        loginDemoUser('USER', 'Ananya Sharma', 'ananya@example.com');
+        loginDemoUser('USER', 'Kabilesh', 'kabileshcoding07@gmail.com');
         router.push('/dashboard');
     };
 

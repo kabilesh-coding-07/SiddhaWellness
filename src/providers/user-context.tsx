@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { User as Profile } from '@/types';
@@ -27,7 +27,20 @@ export function UserProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
     const supabase = createClient();
 
-    const fetchProfile = useCallback(async (userId: string) => {
+    const buildProfileFromSession = (authUser: AuthUser): Profile => {
+        const metadata = authUser.user_metadata || {};
+        const name = metadata.full_name || metadata.name || metadata.preferred_username || authUser.email?.split('@')[0] || 'Kabilesh';
+        const role = (metadata.role as any) || 'USER';
+        return {
+            id: authUser.id,
+            name: name,
+            email: authUser.email || 'kabileshcoding07@gmail.com',
+            role: role,
+            phone: metadata.phone || '+91 98765 43210',
+        };
+    };
+
+    const fetchProfile = useCallback(async (userId: string, authUser: AuthUser) => {
         try {
             const { data, error } = await supabase
                 .from('users')
@@ -39,35 +52,29 @@ export function UserProvider({ children }: { children: ReactNode }) {
                 setProfile(data);
                 return data;
             }
-        } catch (err) {
-            console.error('Error fetching profile:', err);
-        }
-        return null;
+        } catch { }
+
+        // Fallback to OAuth metadata if DB row not found
+        const fallback = buildProfileFromSession(authUser);
+        setProfile(fallback);
+        return fallback;
     }, [supabase]);
 
     useEffect(() => {
         const initSession = async () => {
             try {
-                // 1. Check Supabase session
+                // 1. Check Supabase session first (real OAuth or email login)
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
+                if (session && session.user) {
+                    try { localStorage.removeItem('siddha_demo_user'); } catch { }
                     setUser(session.user);
-                    const p = await fetchProfile(session.user.id);
-                    if (!p) {
-                        setProfile({
-                            id: session.user.id,
-                            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'User',
-                            email: session.user.email || '',
-                            role: (session.user.user_metadata?.role as any) || 'USER',
-                            phone: session.user.user_metadata?.phone || '',
-                        });
-                    }
+                    await fetchProfile(session.user.id, session.user);
                     setLoading(false);
                     return;
                 }
             } catch { }
 
-            // 2. Check Local Demo Session
+            // 2. Check Local Demo Session only if no active Supabase session
             try {
                 const savedDemo = localStorage.getItem('siddha_demo_user');
                 if (savedDemo) {
@@ -81,10 +88,15 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
         initSession();
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
-            if (session) {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event: string, session: any) => {
+            if (session && session.user) {
+                try { localStorage.removeItem('siddha_demo_user'); } catch { }
                 setUser(session.user);
-                await fetchProfile(session.user.id);
+                await fetchProfile(session.user.id, session.user);
+            } else if (event === 'SIGNED_OUT') {
+                try { localStorage.removeItem('siddha_demo_user'); } catch { }
+                setUser(null);
+                setProfile(null);
             } else {
                 const savedDemo = typeof window !== 'undefined' ? localStorage.getItem('siddha_demo_user') : null;
                 if (savedDemo) {
@@ -116,10 +128,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
             phone: '+91 98765 43210',
         } : {
             id: 'demo_user_1',
-            name: name || 'Ananya Sharma',
-            email: email || 'ananya@example.com',
+            name: name || 'Kabilesh',
+            email: email || 'kabileshcoding07@gmail.com',
             role: 'USER',
-            phone: '+91 91234 56789',
+            phone: '+91 98765 43210',
         };
 
         setProfile(demoProfile);
@@ -134,6 +146,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         } catch { }
         try {
             localStorage.removeItem('siddha_demo_user');
+            localStorage.removeItem('siddha_portal_auth');
         } catch { }
         setUser(null);
         setProfile(null);

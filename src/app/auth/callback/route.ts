@@ -13,26 +13,20 @@ export async function GET(request: Request) {
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser()
       if (user) {
-        // Retry loop to wait for the Supabase trigger to create the profile
-        let profile: { role: string } | null = null
-        for (let i = 0; i < 5; i++) {
+        let role = (user.user_metadata?.role as string) || 'USER'
+        try {
           const { data: p } = await supabase
             .from('users')
             .select('role')
             .eq('id', user.id)
             .single()
-          
-          if (p) {
-            profile = p
-            break
+          if (p?.role) {
+            role = p.role
           }
-          // Wait 500ms before next retry
-          await new Promise(resolve => setTimeout(resolve, 500))
-        }
+        } catch { }
         
-        const role = profile?.role || user.user_metadata?.role || 'USER'
         if (role === 'DOCTOR') {
-          return NextResponse.redirect(`${origin}/doctor`)
+          return NextResponse.redirect(`${origin}/portal`)
         }
         return NextResponse.redirect(`${origin}/dashboard`)
       }

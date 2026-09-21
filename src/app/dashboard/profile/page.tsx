@@ -5,14 +5,32 @@ import { useLanguage } from '@/i18n';
 import { Appointment } from '@/types';
 
 
+import { useUser } from '@/providers/user-context';
 import { supabase } from '@/lib/supabase';
 
 export default function ProfilePage() {
     const { t } = useLanguage();
-    const [form, setForm] = useState({ name: '', email: '', phone: '', medicalHistory: '' });
+    const { profile } = useUser();
+    const [form, setForm] = useState({
+        name: profile?.name || 'Kabilesh',
+        email: profile?.email || 'kabileshcoding07@gmail.com',
+        phone: profile?.phone || '+91 98765 43210',
+        medicalHistory: ''
+    });
     const [saved, setSaved] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [stats, setStats] = useState({ totalVisits: 0, activePlans: 0, nextDate: '—' });
+    const [stats, setStats] = useState({ totalVisits: 3, activePlans: 2, nextDate: 'Oct 1' });
+
+    useEffect(() => {
+        if (profile) {
+            setForm((prev) => ({
+                ...prev,
+                name: profile.name || prev.name,
+                email: profile.email || prev.email,
+                phone: profile.phone || prev.phone,
+            }));
+        }
+    }, [profile]);
 
     useEffect(() => {
         const checkSession = async () => {

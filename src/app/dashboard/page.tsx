@@ -13,12 +13,20 @@ interface Appointment {
     doctor?: { user: { name: string } };
 }
 
+import { useUser } from '@/providers/user-context';
 import { supabase } from '@/lib/supabase';
 
 export default function DashboardPage() {
     const { t } = useLanguage();
+    const { profile: userProfile } = useUser();
     const [user, setUser] = useState<{ id: string; name: string } | null>(null);
     const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+    useEffect(() => {
+        if (userProfile) {
+            setUser({ id: userProfile.id, name: userProfile.name });
+        }
+    }, [userProfile]);
 
     const defaultDemoAppointments: Appointment[] = [
         {
