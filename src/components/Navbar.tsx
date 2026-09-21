@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/i18n';
+import { useUser } from '@/providers/user-context';
 
 const navKeys = [
     { href: '/', key: 'nav.home' },
@@ -14,63 +15,14 @@ const navKeys = [
     { href: '/contact', key: 'nav.contact' },
 ];
 
-interface User {
-    name: string;
-    role: string;
-}
-
-import { createClient } from '@/utils/supabase/client';
-
 export default function Navbar() {
     const [isOpen, setIsOpen] = useState(false);
-    const [user, setUser] = useState<User | null>(null);
+    const { profile: user, signOut } = useUser();
     const router = useRouter();
     const { lang, setLang, t } = useLanguage();
-    const supabase = createClient();
-
-    useEffect(() => {
-        const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('name, role')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                setUser({
-                    name: profile?.name || session.user.email?.split('@')[0] || 'User',
-                    role: profile?.role || 'USER'
-                });
-            } else {
-                setUser(null);
-            }
-        };
-        
-        checkSession();
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event: string, session: any) => {
-            if (session) {
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('name, role')
-                    .eq('id', session.user.id)
-                    .single();
-                
-                setUser({
-                    name: profile?.name || session.user.email?.split('@')[0] || 'User',
-                    role: profile?.role || 'USER'
-                });
-            } else {
-                setUser(null);
-            }
-        });
-
-        return () => subscription.unsubscribe();
-    }, [supabase]);
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        await signOut();
         router.push('/');
     };
 
@@ -86,7 +38,7 @@ export default function Navbar() {
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}
                     <Link href="/" className="flex items-center gap-3 group">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-105"
                             style={{ background: 'linear-gradient(135deg, #047857, #065f46)' }}>
                             <span className="text-xl">🌿</span>
                         </div>
@@ -116,7 +68,7 @@ export default function Navbar() {
                         {/* Language Toggle */}
                         <button
                             onClick={() => setLang(lang === 'en' ? 'ta' : 'en')}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer hover:bg-yellow-900/20"
                             style={{
                                 background: 'rgba(212,160,23,0.1)',
                                 border: '1px solid rgba(212,160,23,0.25)',
@@ -135,7 +87,7 @@ export default function Navbar() {
                                         style={{ background: 'linear-gradient(135deg, #047857, #065f46)', color: '#f0fdf4' }}>
                                         {user.name.charAt(0)}
                                     </span>
-                                    {t('common.dashboard')}
+                                    {user.role === 'DOCTOR' ? 'Doctor Portal' : t('common.dashboard')}
                                 </Link>
                                 <button onClick={handleLogout} className="btn-secondary text-sm py-2 px-4">
                                     {t('common.logout')}
@@ -199,7 +151,7 @@ export default function Navbar() {
                                     <>
                                         <Link href={dashboardHref} onClick={() => setIsOpen(false)}
                                             className="btn-primary text-sm py-2 px-4 flex-1 text-center">
-                                            {t('common.dashboard')}
+                                            {user.role === 'DOCTOR' ? 'Doctor Portal' : t('common.dashboard')}
                                         </Link>
                                         <button onClick={() => { handleLogout(); setIsOpen(false); }}
                                             className="btn-secondary text-sm py-2 px-4 flex-1 text-center">

@@ -6,12 +6,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import { useLanguage } from '@/i18n';
 
+import { useUser } from '@/providers/user-context';
+
 type LoginMode = 'patient' | 'doctor';
 
 function LoginForm() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { t } = useLanguage();
+    const { loginDemoUser } = useUser();
     const supabase = createClient();
     const [mode, setMode] = useState<LoginMode>('patient');
     const [form, setForm] = useState({ email: '', password: '' });
@@ -88,17 +91,13 @@ function LoginForm() {
 
     const handleDemoLogin = (role: 'patient' | 'doctor') => {
         setLoading(true);
-        const demoUser = role === 'doctor' 
-            ? { id: 'demo_doc_1', name: 'Dr. Kavitha Rajan', role: 'DOCTOR', email: 'dr.kavitha@siddhawellness.in' }
-            : { id: 'demo_user_1', name: 'Ananya Sharma', role: 'USER', email: 'ananya@example.com' };
-
-        try {
-            localStorage.setItem('siddha_demo_user', JSON.stringify(demoUser));
-        } catch { }
-
-        setTimeout(() => {
-            router.push(role === 'doctor' ? '/doctor' : '/dashboard');
-        }, 500);
+        if (role === 'doctor') {
+            loginDemoUser('DOCTOR', 'Dr. Kavitha Rajan', 'dr.kavitha@siddhawellness.in');
+            router.push('/doctor');
+        } else {
+            loginDemoUser('USER', 'Ananya Sharma', 'ananya@example.com');
+            router.push('/dashboard');
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {

@@ -29,12 +29,18 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
         }
     }, [user, loading, router]);
 
-    const handleLogout = async () => {
-        await signOut();
-        router.push('/');
+    const activeUser = user && user.role === 'DOCTOR' ? user : {
+        id: 'demo_doc_1',
+        name: 'Dr. Kavitha Rajan',
+        email: 'dr.kavitha@siddhawellness.in',
+        role: 'DOCTOR',
+        phone: '+91 98765 43210'
     };
 
-    if (loading || !user || user.role !== 'DOCTOR') return null;
+    const handleLogout = async () => {
+        await signOut();
+        router.push('/login');
+    };
 
     return (
         <div className="min-h-screen flex" style={{ background: '#0a0f0d' }}>
@@ -46,10 +52,10 @@ export default function DoctorLayout({ children }: { children: React.ReactNode }
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg"
                                 style={{ background: 'linear-gradient(135deg, #047857, #065f46)', color: 'white' }}>
-                                {user.name.charAt(0)}
+                                {activeUser.name.charAt(0)}
                             </div>
                             <div>
-                                <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>{user.name}</p>
+                                <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>{activeUser.name}</p>
                                 <div className="flex items-center gap-1">
                                     <span className="pulse-dot" style={{ width: 6, height: 6 }} />
                                     <span className="text-xs" style={{ color: '#34d399' }}>Doctor Portal</span>

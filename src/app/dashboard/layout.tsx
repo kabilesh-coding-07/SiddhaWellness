@@ -19,13 +19,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     const { profile: user, loading, signOut } = useUser();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    const handleLogout = async () => {
-        await signOut();
-        router.push('/');
+    const activeUser = user || {
+        id: 'patient_demo',
+        name: 'Patient Guest',
+        email: 'guest@siddhawellness.in',
+        role: 'USER',
+        phone: '+91 98765 43210'
     };
 
-    if (loading) return null;
-    if (!user) return null;
+    const handleLogout = async () => {
+        await signOut();
+        router.push('/login');
+    };
 
     return (
         <div className="min-h-screen flex" style={{ background: '#0a0f0d' }}>
@@ -37,11 +42,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                         <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
                                 style={{ background: 'rgba(4,120,87,0.2)', color: '#34d399' }}>
-                                {user.name.charAt(0)}
+                                {activeUser.name.charAt(0)}
                             </div>
                             <div>
-                                <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>{user.name}</p>
-                                <p className="text-xs" style={{ color: '#6b8f7e' }}>{user.email}</p>
+                                <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>{activeUser.name}</p>
+                                <p className="text-xs" style={{ color: '#6b8f7e' }}>{activeUser.email}</p>
                             </div>
                         </div>
                     </div>
