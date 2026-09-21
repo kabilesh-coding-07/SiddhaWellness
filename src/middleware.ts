@@ -1,16 +1,14 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+const LIVE_SUPABASE_URL = 'https://xvxeofhkagyqbfxpsqzi.supabase.co';
+const LIVE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2eGVvZmhrYWd5cWJmeHBzcXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ1MzIwODEsImV4cCI6MjA5MDEwODA4MX0.DtIohNwk_q4UWcxmjA0juHieQoTeRvtCyPxNiWMeVL4';
+
 export async function middleware(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || LIVE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || LIVE_SUPABASE_ANON_KEY;
 
   const url = request.nextUrl.clone();
-
-  // If Supabase is not configured, skip middleware protection
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.next();
-  }
 
   let response = NextResponse.next({
     request: {
