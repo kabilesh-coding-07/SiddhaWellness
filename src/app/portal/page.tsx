@@ -45,83 +45,96 @@ export default function PortalDashboard() {
     const { profile: user } = useUser();
     const [appointments, setAppointments] = useState<Appointment[]>(defaultDemoQueue);
 
+    const loadLocalAppointments = () => {
+        const appointmentMap = new Map<string, Appointment>();
+
+        for (const a of defaultDemoQueue) {
+            appointmentMap.set(a.id, a);
+        }
+
+        try {
+            const stored = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+            if (Array.isArray(stored)) {
+                for (const a of stored) {
+                    if (a && a.id) appointmentMap.set(String(a.id), a);
+                }
+            }
+        } catch { }
+
+        try {
+            const stored = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+            if (Array.isArray(stored)) {
+                for (const a of stored) {
+                    if (a && a.id) {
+                        appointmentMap.set(String(a.id), {
+                            id: String(a.id),
+                            date: a.date,
+                            time: a.time,
+                            status: a.status || 'PENDING',
+                            symptoms: a.symptoms || 'General Health Consultation',
+                            user: {
+                                name: a.user?.name || 'Kabilesh',
+                                phone: a.user?.phone || '+91 98765 43210'
+                            }
+                        });
+                    }
+                }
+            }
+        } catch { }
+
+        const list = Array.from(appointmentMap.values());
+        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return list;
+    };
+
     useEffect(() => {
-        const loadDoctorData = async () => {
-            // 1. Fetch from Supabase
-            let supabaseAppts: Appointment[] = [];
+        // 1. Instant synchronous load
+        const initialList = loadLocalAppointments();
+        setAppointments(initialList);
+        try {
+            localStorage.setItem('siddha_portal_appointments', JSON.stringify(initialList));
+        } catch { }
+
+        // 2. Background remote sync
+        const fetchRemote = async () => {
             try {
                 const { data, error } = await supabase
                     .from('appointments')
-                    .select('id, date, time, status, symptoms, doctorId, user:users(name, email, phone)')
+                    .select('*')
                     .order('date', { ascending: false });
 
                 if (!error && data && data.length > 0) {
-                    supabaseAppts = data.map((a: any) => ({
-                        id: String(a.id),
-                        date: a.date,
-                        time: a.time,
-                        status: a.status || 'PENDING',
-                        symptoms: a.symptoms || 'General Health Consultation',
-                        user: {
-                            name: a.user?.name || (a.user?.email ? a.user.email.split('@')[0] : 'Kabilesh'),
-                            phone: a.user?.phone || '+91 98765 43210'
+                    setAppointments((prev) => {
+                        const map = new Map<string, Appointment>();
+                        for (const item of prev) {
+                            map.set(item.id, item);
                         }
-                    }));
-                }
-            } catch { }
-
-            // 2. Read from patient local storage
-            let localPatientAppts: Appointment[] = [];
-            try {
-                const stored = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-                if (Array.isArray(stored)) {
-                    localPatientAppts = stored.map((a: any) => ({
-                        id: String(a.id),
-                        date: a.date,
-                        time: a.time,
-                        status: a.status || 'PENDING',
-                        symptoms: a.symptoms || 'General Health Consultation',
-                        user: {
-                            name: a.user?.name || 'Kabilesh',
-                            phone: a.user?.phone || '+91 98765 43210'
+                        for (const row of data) {
+                            const existing = map.get(String(row.id));
+                            map.set(String(row.id), {
+                                id: String(row.id),
+                                date: row.date,
+                                time: row.time,
+                                status: row.status || 'PENDING',
+                                symptoms: row.symptoms || 'General Health Consultation',
+                                user: existing?.user || {
+                                    name: 'Kabilesh',
+                                    phone: '+91 98765 43210'
+                                }
+                            });
                         }
-                    }));
+                        const mergedList = Array.from(map.values());
+                        mergedList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+                        try {
+                            localStorage.setItem('siddha_portal_appointments', JSON.stringify(mergedList));
+                        } catch { }
+                        return mergedList;
+                    });
                 }
-            } catch { }
-
-            // 3. Read from portal local storage
-            let localPortalAppts: Appointment[] = [];
-            try {
-                const stored = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
-                if (Array.isArray(stored)) {
-                    localPortalAppts = stored;
-                }
-            } catch { }
-
-            // 4. Merge all together: Default demo items -> Portal items -> Patient items -> Supabase items
-            const appointmentMap = new Map<string, Appointment>();
-
-            for (const a of defaultDemoQueue) {
-                appointmentMap.set(a.id, a);
-            }
-            for (const a of localPortalAppts) {
-                appointmentMap.set(a.id, a);
-            }
-            for (const a of localPatientAppts) {
-                appointmentMap.set(a.id, a);
-            }
-            for (const a of supabaseAppts) {
-                appointmentMap.set(a.id, a);
-            }
-
-            const merged = Array.from(appointmentMap.values());
-            setAppointments(merged);
-            try {
-                localStorage.setItem('siddha_portal_appointments', JSON.stringify(merged));
             } catch { }
         };
 
-        loadDoctorData();
+        fetchRemote();
     }, [user]);
 
     const pendingCount = appointments.filter(a => a.status === 'PENDING').length;
