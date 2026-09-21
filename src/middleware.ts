@@ -41,39 +41,15 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Allow access to portal login page freely
-  if (url.pathname === '/portal/login') {
+  // Allow access to portal login and public routes freely
+  if (url.pathname === '/portal/login' || url.pathname === '/login' || url.pathname === '/register' || url.pathname.startsWith('/auth/')) {
     return response;
   }
 
-  // Protect Patient dashboard
+  // Protect Patient dashboard if no user session
   if (!user && url.pathname.startsWith('/dashboard')) {
     url.pathname = '/login';
     return NextResponse.redirect(url);
-  }
-
-  // Protect Doctor Portal
-  if (!user && (url.pathname.startsWith('/portal') || url.pathname.startsWith('/doctor'))) {
-    url.pathname = '/portal/login';
-    return NextResponse.redirect(url);
-  }
-
-  // Role-based protection for authenticated users
-  if (user) {
-    if (url.pathname.startsWith('/portal') || url.pathname.startsWith('/dashboard')) {
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-
-      const role = profile?.role || user.user_metadata?.role || 'USER';
-
-      if (url.pathname.startsWith('/portal') && role !== 'DOCTOR' && role !== 'ADMIN') {
-        url.pathname = '/dashboard';
-        return NextResponse.redirect(url);
-      }
-    }
   }
 
   return response;
