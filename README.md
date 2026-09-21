@@ -116,23 +116,14 @@ cd SiddhaWellness
 npm install
 ```
 
-### 2. Configure Environment
-Create `.env.local` at the root:
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-```
+### 2. Configure Credentials
+Set up your Supabase project URL and anonymous key in your environment settings.
 
-### 3. Set Up Supabase Tables
-Create these tables in your Supabase dashboard:
+### 3. Database Schema
+Create the required tables in your Supabase database:
+- `users`, `doctors`, `appointments`, `blogs`, `services`
 
-- **users** — `id (uuid, PK)`, `name`, `email`, `role` (USER/DOCTOR), `phone`, `image`
-- **doctors** — `id`, `userId (FK → users)`, `specialty`, `experience`, `bio`, `availability`
-- **appointments** — `id`, `userId (FK)`, `doctorId (FK)`, `date`, `time`, `status`, `symptoms`, `notes`
-- **blogs** — `id`, `title`, `slug`, `content`, `excerpt`, `published`, `createdAt`, `authorId`
-- **services** — `id`, `name`, `description`, `icon`, `price`, `duration`
-
-### 4. Run
+### 4. Run Development Server
 ```bash
 npm run dev
 ```
