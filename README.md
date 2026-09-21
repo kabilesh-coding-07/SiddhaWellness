@@ -4,7 +4,7 @@
 
 > Ancient healing. Modern technology. One seamless experience.
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-demo--lime--delta--12.vercel.app-047857?style=for-the-badge)](https://demo-lime-delta-12.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-siddhawellness.vercel.app-047857?style=for-the-badge)](https://siddhawellness.vercel.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![Supabase](https://img.shields.io/badge/Supabase-Auth_&_DB-3ECF8E?style=flat-square&logo=supabase)](https://supabase.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)](https://typescriptlang.org)
