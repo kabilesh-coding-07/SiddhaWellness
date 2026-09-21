@@ -1,6 +1,6 @@
-'use client';
+﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/providers/user-context';
 
@@ -11,10 +11,38 @@ interface Appointment {
     status: string;
     symptoms?: string;
     notes?: string;
+    doctor?: { specialty?: string; user?: { name: string } };
     user?: { name: string; email?: string; phone?: string };
 }
 
 const defaultDoctorAppointments: Appointment[] = [
+    {
+        id: 'apt_kabilesh_1',
+        date: '2026-10-01',
+        time: '03:30 PM',
+        status: 'PENDING',
+        symptoms: 'General health assessment & Siddha consultation',
+        notes: '',
+        user: { name: 'Kabilesh', email: 'kabileshcoding07@gmail.com', phone: '+91 98765 43210' }
+    },
+    {
+        id: 'apt_kabilesh_2',
+        date: '2026-09-30',
+        time: '06:00 PM',
+        status: 'CONFIRMED',
+        symptoms: 'Digestive balance & wellness check',
+        notes: 'Confirmed appointment. Prescribed preliminary herbal consultation.',
+        user: { name: 'Kabilesh', email: 'kabileshcoding07@gmail.com', phone: '+91 98765 43210' }
+    },
+    {
+        id: 'apt_kabilesh_3',
+        date: '2026-09-22',
+        time: '04:30 PM',
+        status: 'PENDING',
+        symptoms: 'Follow-up on Siddha dietary guidelines',
+        notes: '',
+        user: { name: 'Kabilesh', email: 'kabileshcoding07@gmail.com', phone: '+91 98765 43210' }
+    },
     {
         id: 'doc_apt_1',
         date: new Date().toISOString().split('T')[0],
@@ -50,114 +78,122 @@ export default function PortalAppointmentsPage() {
     const [filter, setFilter] = useState('ALL');
     const [noteModal, setNoteModal] = useState<string | null>(null);
     const [noteText, setNoteText] = useState('');
+    const [refreshing, setRefreshing] = useState(false);
 
-    const loadLocalAppointments = () => {
-        const appointmentMap = new Map<string, Appointment>();
+    const mergeAppointments = useCallback((existingList: Appointment[], incoming: any[]): Appointment[] => {
+        const map = new Map<string, Appointment>();
 
-        // Default base doctor appointments
+        // 1. Base default doctor appointments
         for (const a of defaultDoctorAppointments) {
-            appointmentMap.set(a.id, a);
+            map.set(String(a.id), a);
         }
 
-        // Read portal localStorage
+        // 2. Existing items
+        for (const a of existingList) {
+            if (a && a.id) map.set(String(a.id), a);
+        }
+
+        // 3. Incoming items
+        for (const a of incoming) {
+            if (!a || !a.id) continue;
+            const key = String(a.id);
+            const prev = map.get(key);
+            map.set(key, {
+                id: key,
+                date: a.date || prev?.date || new Date().toISOString().split('T')[0],
+                time: a.time || prev?.time || '10:00 AM',
+                status: a.status || prev?.status || 'PENDING',
+                symptoms: a.symptoms || prev?.symptoms || 'General Health Consultation',
+                notes: a.notes !== undefined ? a.notes : (prev?.notes || ''),
+                doctor: a.doctor || prev?.doctor,
+                user: {
+                    name: a.user?.name || prev?.user?.name || 'Kabilesh',
+                    email: a.user?.email || prev?.user?.email || 'kabileshcoding07@gmail.com',
+                    phone: a.user?.phone || prev?.user?.phone || '+91 98765 43210'
+                }
+            });
+        }
+
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return merged;
+    }, []);
+
+    const syncAll = useCallback(async () => {
+        let current = [...appointments];
+
+        // 1. Read localStorage
         try {
-            const stored = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
-            if (Array.isArray(stored)) {
-                for (const a of stored) {
-                    if (a && a.id) appointmentMap.set(String(a.id), a);
+            const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+            const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+            const localCombined = [...(Array.isArray(portalApts) ? portalApts : []), ...(Array.isArray(patientApts) ? patientApts : [])];
+            current = mergeAppointments(current, localCombined);
+        } catch { }
+
+        // 2. Fetch from shared server API
+        try {
+            const res = await fetch('/api/appointments');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && Array.isArray(data.appointments)) {
+                    current = mergeAppointments(current, data.appointments);
                 }
             }
         } catch { }
 
-        // Read patient bookings (highest priority for newly booked patient appointments)
+        // 3. Fetch from Supabase
         try {
-            const stored = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-            if (Array.isArray(stored)) {
-                for (const a of stored) {
-                    if (a && a.id) {
-                        appointmentMap.set(String(a.id), {
-                            id: String(a.id),
-                            date: a.date,
-                            time: a.time,
-                            status: a.status || 'PENDING',
-                            symptoms: a.symptoms || 'General Health Consultation',
-                            notes: a.notes || '',
-                            user: {
-                                name: a.user?.name || 'Kabilesh',
-                                email: a.user?.email || 'kabileshcoding07@gmail.com',
-                                phone: a.user?.phone || '+91 98765 43210'
-                            }
-                        });
-                    }
-                }
+            const { data, error } = await supabase
+                .from('appointments')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (!error && data && data.length > 0) {
+                current = mergeAppointments(current, data);
             }
         } catch { }
 
-        const list = Array.from(appointmentMap.values());
-        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        return list;
+        setAppointments(current);
+        try {
+            localStorage.setItem('siddha_portal_appointments', JSON.stringify(current));
+        } catch { }
+    }, [appointments, mergeAppointments]);
+
+    const handleManualRefresh = async () => {
+        setRefreshing(true);
+        await syncAll();
+        setTimeout(() => setRefreshing(false), 600);
     };
 
     useEffect(() => {
-        // 1. Instant synchronous load from local storage
-        const initialList = loadLocalAppointments();
-        setAppointments(initialList);
-        try {
-            localStorage.setItem('siddha_portal_appointments', JSON.stringify(initialList));
-        } catch { }
+        // Initial sync
+        syncAll();
 
-        // 2. Background async Supabase sync
-        const fetchRemote = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('appointments')
-                    .select('*')
-                    .order('date', { ascending: false });
-
-                if (!error && data && data.length > 0) {
-                    setAppointments((prev) => {
-                        const map = new Map<string, Appointment>();
-                        for (const item of prev) {
-                            map.set(item.id, item);
-                        }
-                        for (const row of data) {
-                            const existing = map.get(String(row.id));
-                            map.set(String(row.id), {
-                                id: String(row.id),
-                                date: row.date,
-                                time: row.time,
-                                status: row.status || 'PENDING',
-                                symptoms: row.symptoms || 'General Health Consultation',
-                                notes: row.notes || '',
-                                user: existing?.user || {
-                                    name: 'Kabilesh',
-                                    email: 'kabileshcoding07@gmail.com',
-                                    phone: '+91 98765 43210'
-                                }
-                            });
-                        }
-                        const mergedList = Array.from(map.values());
-                        mergedList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                        try {
-                            localStorage.setItem('siddha_portal_appointments', JSON.stringify(mergedList));
-                        } catch { }
-                        return mergedList;
-                    });
-                }
-            } catch { }
+        // Listen to cross-tab storage changes
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === 'siddha_appointments' || e.key === 'siddha_portal_appointments') {
+                syncAll();
+            }
         };
+        window.addEventListener('storage', onStorage);
 
-        fetchRemote();
-    }, [user]);
+        // Sync when user focuses window
+        const onFocus = () => syncAll();
+        window.addEventListener('focus', onFocus);
+
+        // Polling interval every 3 seconds for active sync
+        const timer = setInterval(() => {
+            syncAll();
+        }, 3000);
+
+        return () => {
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('focus', onFocus);
+            clearInterval(timer);
+        };
+    }, [syncAll]);
 
     const updateStatus = async (id: string, status: string) => {
-        try {
-            await supabase
-                .from('appointments')
-                .update({ status })
-                .eq('id', id);
-        } catch { }
-
         setAppointments((prev) => {
             const updated = prev.map((a) => a.id === id ? { ...a, status } : a);
             try {
@@ -166,7 +202,7 @@ export default function PortalAppointmentsPage() {
             return updated;
         });
 
-        // Synchronize with patient appointments storage
+        // Sync to patient storage
         try {
             const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
             if (Array.isArray(patientApts)) {
@@ -174,16 +210,26 @@ export default function PortalAppointmentsPage() {
                 localStorage.setItem('siddha_appointments', JSON.stringify(updatedPatients));
             }
         } catch { }
-    };
 
-    const saveNote = async (id: string) => {
+        // Sync to Server API
+        try {
+            await fetch('/api/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'updateStatus', id, status }),
+            });
+        } catch { }
+
+        // Sync to Supabase
         try {
             await supabase
                 .from('appointments')
-                .update({ notes: noteText })
+                .update({ status })
                 .eq('id', id);
         } catch { }
+    };
 
+    const saveNote = async (id: string) => {
         setAppointments((prev) => {
             const updated = prev.map((a) => a.id === id ? { ...a, notes: noteText } : a);
             try {
@@ -200,6 +246,21 @@ export default function PortalAppointmentsPage() {
             }
         } catch { }
 
+        try {
+            await fetch('/api/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'updateNotes', id, notes: noteText }),
+            });
+        } catch { }
+
+        try {
+            await supabase
+                .from('appointments')
+                .update({ notes: noteText })
+                .eq('id', id);
+        } catch { }
+
         setNoteModal(null);
         setNoteText('');
     };
@@ -213,11 +274,37 @@ export default function PortalAppointmentsPage() {
     };
 
     const filtered = filter === 'ALL' ? appointments : appointments.filter((a) => a.status === filter);
+    const pendingCount = appointments.filter(a => a.status === 'PENDING').length;
 
     return (
         <div>
-            <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">Appointment Queue & Approvals</h1>
-            <p className="text-sm mb-8" style={{ color: '#6b8f7e' }}>Review incoming patient bookings, confirm consultations, or add diagnostic case notes.</p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                    <h1 className="font-playfair text-3xl font-bold mb-2 gradient-text">Appointment Queue & Approvals</h1>
+                    <p className="text-sm" style={{ color: '#6b8f7e' }}>
+                        Review incoming patient bookings, confirm consultations, or add diagnostic case notes.
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleManualRefresh}
+                        className="px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-md"
+                        style={{
+                            background: 'rgba(14,116,144,0.2)',
+                            color: '#22d3ee',
+                            border: '1px solid rgba(14,116,144,0.4)',
+                        }}
+                    >
+                        <span className={`inline-block ${refreshing ? 'animate-spin' : ''}`}>🔄</span>
+                        <span>{refreshing ? 'Syncing...' : 'Sync Live Queue'}</span>
+                    </button>
+                    {pendingCount > 0 && (
+                        <div className="px-3 py-1.5 rounded-xl text-xs font-semibold" style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308', border: '1px solid rgba(234,179,8,0.3)' }}>
+                            ⚡ {pendingCount} Pending Approval
+                        </div>
+                    )}
+                </div>
+            </div>
 
             {/* Filter Pills */}
             <div className="flex flex-wrap gap-2 mb-6">
@@ -229,7 +316,7 @@ export default function PortalAppointmentsPage() {
                             border: `1px solid ${filter === f ? '#0891b2' : 'rgba(14,116,144,0.15)'}`,
                             color: filter === f ? '#22d3ee' : '#6b8f7e',
                         }}>
-                        {f}
+                        {f} {f === 'ALL' ? `(${appointments.length})` : `(${appointments.filter(a => a.status === f).length})`}
                     </button>
                 ))}
             </div>
@@ -240,56 +327,60 @@ export default function PortalAppointmentsPage() {
                     <div key={apt.id} className="glass-card p-6" style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
                         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                             <div className="flex items-start gap-4">
-                                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl"
+                                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0"
                                     style={{ background: 'rgba(14,116,144,0.15)' }}>👤</div>
                                 <div>
-                                    <p className="font-semibold" style={{ color: '#f0fdf4' }}>{apt.user?.name}</p>
-                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>{apt.user?.email || 'Patient'} {apt.user?.phone && `· ${apt.user.phone}`}</p>
-                                    <p className="text-sm mt-1" style={{ color: '#a7c4b8' }}>
-                                        📅 {new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })} at {apt.time}
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="font-semibold text-base" style={{ color: '#f0fdf4' }}>{apt.user?.name || 'Patient'}</p>
+                                        <span className={`badge ${statusColors[apt.status] || 'badge-pending'}`}>{apt.status}</span>
+                                    </div>
+                                    <p className="text-xs mt-0.5" style={{ color: '#6b8f7e' }}>
+                                        {apt.user?.email || 'patient@example.com'} {apt.user?.phone && `· ${apt.user.phone}`}
+                                    </p>
+                                    <p className="text-sm font-medium mt-1.5" style={{ color: '#34d399' }}>
+                                        📅 {new Date(apt.date).toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })} at {apt.time}
                                     </p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 flex-wrap">
-                                <span className={`badge ${statusColors[apt.status] || 'badge-pending'}`}>{apt.status}</span>
                                 {apt.status === 'PENDING' && (
                                     <>
                                         <button onClick={() => updateStatus(apt.id, 'CONFIRMED')}
-                                            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                                            style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.3)' }}>
-                                            ✓ Accept
+                                            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-105"
+                                            style={{ background: 'rgba(34,197,94,0.2)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.4)' }}>
+                                            ✓ Accept & Confirm
                                         </button>
                                         <button onClick={() => updateStatus(apt.id, 'REJECTED')}
-                                            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                                            style={{ background: 'rgba(239,68,68,0.15)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.3)' }}>
+                                            className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-105"
+                                            style={{ background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.4)' }}>
                                             ✕ Reject
                                         </button>
                                     </>
                                 )}
                                 {apt.status === 'CONFIRMED' && (
                                     <button onClick={() => updateStatus(apt.id, 'COMPLETED')}
-                                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
-                                        style={{ background: 'rgba(59,130,246,0.15)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.3)' }}>
-                                        ✓ Mark Complete
+                                        className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-105"
+                                        style={{ background: 'rgba(59,130,246,0.2)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.4)' }}>
+                                        ✓ Mark as Completed
                                     </button>
                                 )}
                                 <button onClick={() => { setNoteModal(apt.id); setNoteText(apt.notes || ''); }}
-                                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
+                                    className="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-sm hover:scale-105"
                                     style={{ background: 'rgba(14,116,144,0.15)', color: '#22d3ee', border: '1px solid rgba(14,116,144,0.3)' }}>
-                                    📝 Notes
+                                    📝 Clinical Notes
                                 </button>
                             </div>
                         </div>
 
                         {apt.symptoms && (
                             <div className="mt-4 pt-4" style={{ borderTop: '1px solid rgba(14,116,144,0.15)' }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: '#6b8f7e' }}>Reported Symptoms</p>
+                                <p className="text-xs font-medium mb-1" style={{ color: '#6b8f7e' }}>Reported Symptoms & Consultation Request</p>
                                 <p className="text-sm" style={{ color: '#a7c4b8' }}>{apt.symptoms}</p>
                             </div>
                         )}
                         {apt.notes && (
                             <div className="mt-3 p-3 rounded-lg" style={{ background: 'rgba(14,116,144,0.08)' }}>
-                                <p className="text-xs font-medium mb-1" style={{ color: '#22d3ee' }}>Doctor Diagnostic Notes</p>
+                                <p className="text-xs font-medium mb-1" style={{ color: '#22d3ee' }}>Doctor Diagnostic Notes & Prescriptions</p>
                                 <p className="text-sm" style={{ color: '#a7c4b8' }}>{apt.notes}</p>
                             </div>
                         )}
@@ -299,16 +390,17 @@ export default function PortalAppointmentsPage() {
 
             {/* Notes Modal */}
             {noteModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setNoteModal(null)}>
-                    <div className="glass-card p-8 max-w-lg w-full mx-4" onClick={(e) => e.stopPropagation()}
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs" onClick={() => setNoteModal(null)}>
+                    <div className="glass-card p-8 max-w-lg w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}
                         style={{ background: '#111a16', border: '1px solid rgba(14,116,144,0.4)' }}>
-                        <h3 className="text-xl font-semibold mb-4" style={{ color: '#f0fdf4' }}>Clinical Case Notes & Prescription</h3>
+                        <h3 className="text-xl font-semibold mb-2" style={{ color: '#f0fdf4' }}>Clinical Case Notes & Prescription</h3>
+                        <p className="text-xs mb-4" style={{ color: '#6b8f7e' }}>Enter diagnosis, prescribed medicines (Chooranam, Lehyam), or dietary instructions for this patient.</p>
                         <textarea className="form-input mb-4" rows={5}
-                            placeholder="Enter diagnosis, prescribed medicines (Chooranam, Lehyam), or dietary instructions..."
+                            placeholder="Enter clinical notes, dosage instructions, and follow-up guidance..."
                             value={noteText} onChange={(e) => setNoteText(e.target.value)} />
                         <div className="flex gap-3 justify-end">
-                            <button onClick={() => setNoteModal(null)} className="btn-secondary text-sm py-2 px-4">Cancel</button>
-                            <button onClick={() => saveNote(noteModal)} className="btn-primary text-sm py-2 px-4"
+                            <button onClick={() => setNoteModal(null)} className="btn-secondary text-sm py-2 px-4 cursor-pointer">Cancel</button>
+                            <button onClick={() => saveNote(noteModal)} className="btn-primary text-sm py-2 px-4 cursor-pointer"
                                 style={{ background: 'linear-gradient(135deg, #0e7490, #155e75)' }}>
                                 Save Clinical Notes
                             </button>

@@ -17,6 +17,16 @@ interface Patient {
 
 const defaultDemoPatients: Patient[] = [
     {
+        id: 'pat_kabilesh',
+        name: 'Kabilesh',
+        email: 'kabileshcoding07@gmail.com',
+        phone: '+91 98765 43210',
+        medicalHistory: 'Active patient consultation requests for general health assessment, dietary wellness, and Siddha pulse diagnosis (Naadi Pariksha).',
+        lastVisit: '2026-10-01',
+        totalVisits: 3,
+        symptoms: 'General health consultation & wellness check'
+    },
+    {
         id: 'pat_1',
         name: 'Ramya Shankar',
         email: 'ramya@example.com',

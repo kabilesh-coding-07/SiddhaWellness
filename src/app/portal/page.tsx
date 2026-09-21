@@ -1,7 +1,7 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/providers/user-context';
 
@@ -15,6 +15,30 @@ interface Appointment {
 }
 
 const defaultDemoQueue: Appointment[] = [
+    {
+        id: 'apt_kabilesh_1',
+        date: '2026-10-01',
+        time: '03:30 PM',
+        status: 'PENDING',
+        symptoms: 'General health assessment & Siddha consultation',
+        user: { name: 'Kabilesh', email: 'kabileshcoding07@gmail.com', phone: '+91 98765 43210' }
+    },
+    {
+        id: 'apt_kabilesh_2',
+        date: '2026-09-30',
+        time: '06:00 PM',
+        status: 'CONFIRMED',
+        symptoms: 'Digestive balance & wellness check',
+        user: { name: 'Kabilesh', email: 'kabileshcoding07@gmail.com', phone: '+91 98765 43210' }
+    },
+    {
+        id: 'apt_kabilesh_3',
+        date: '2026-09-22',
+        time: '04:30 PM',
+        status: 'PENDING',
+        symptoms: 'Follow-up on Siddha dietary guidelines',
+        user: { name: 'Kabilesh', email: 'kabileshcoding07@gmail.com', phone: '+91 98765 43210' }
+    },
     {
         id: 'doc_apt_1',
         date: new Date().toISOString().split('T')[0],
@@ -44,98 +68,108 @@ const defaultDemoQueue: Appointment[] = [
 export default function PortalDashboard() {
     const { profile: user } = useUser();
     const [appointments, setAppointments] = useState<Appointment[]>(defaultDemoQueue);
+    const [refreshing, setRefreshing] = useState(false);
 
-    const loadLocalAppointments = () => {
-        const appointmentMap = new Map<string, Appointment>();
+    const mergeAppointments = useCallback((existingList: Appointment[], incoming: any[]): Appointment[] => {
+        const map = new Map<string, Appointment>();
 
         for (const a of defaultDemoQueue) {
-            appointmentMap.set(a.id, a);
+            map.set(String(a.id), a);
         }
 
+        for (const a of existingList) {
+            if (a && a.id) map.set(String(a.id), a);
+        }
+
+        for (const a of incoming) {
+            if (!a || !a.id) continue;
+            const key = String(a.id);
+            const prev = map.get(key);
+            map.set(key, {
+                id: key,
+                date: a.date || prev?.date || new Date().toISOString().split('T')[0],
+                time: a.time || prev?.time || '10:00 AM',
+                status: a.status || prev?.status || 'PENDING',
+                symptoms: a.symptoms || prev?.symptoms || 'General Health Consultation',
+                user: {
+                    name: a.user?.name || prev?.user?.name || 'Kabilesh',
+                    email: a.user?.email || prev?.user?.email || 'kabileshcoding07@gmail.com',
+                    phone: a.user?.phone || prev?.user?.phone || '+91 98765 43210'
+                }
+            });
+        }
+
+        const merged = Array.from(map.values());
+        merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return merged;
+    }, []);
+
+    const syncAll = useCallback(async () => {
+        let current = [...appointments];
+
         try {
-            const stored = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
-            if (Array.isArray(stored)) {
-                for (const a of stored) {
-                    if (a && a.id) appointmentMap.set(String(a.id), a);
+            const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+            const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+            const localCombined = [...(Array.isArray(portalApts) ? portalApts : []), ...(Array.isArray(patientApts) ? patientApts : [])];
+            current = mergeAppointments(current, localCombined);
+        } catch { }
+
+        try {
+            const res = await fetch('/api/appointments');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && Array.isArray(data.appointments)) {
+                    current = mergeAppointments(current, data.appointments);
                 }
             }
         } catch { }
 
         try {
-            const stored = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-            if (Array.isArray(stored)) {
-                for (const a of stored) {
-                    if (a && a.id) {
-                        appointmentMap.set(String(a.id), {
-                            id: String(a.id),
-                            date: a.date,
-                            time: a.time,
-                            status: a.status || 'PENDING',
-                            symptoms: a.symptoms || 'General Health Consultation',
-                            user: {
-                                name: a.user?.name || 'Kabilesh',
-                                phone: a.user?.phone || '+91 98765 43210'
-                            }
-                        });
-                    }
-                }
+            const { data, error } = await supabase
+                .from('appointments')
+                .select('*')
+                .order('date', { ascending: false });
+
+            if (!error && data && data.length > 0) {
+                current = mergeAppointments(current, data);
             }
         } catch { }
 
-        const list = Array.from(appointmentMap.values());
-        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        return list;
+        setAppointments(current);
+        try {
+            localStorage.setItem('siddha_portal_appointments', JSON.stringify(current));
+        } catch { }
+    }, [appointments, mergeAppointments]);
+
+    const handleManualRefresh = async () => {
+        setRefreshing(true);
+        await syncAll();
+        setTimeout(() => setRefreshing(false), 600);
     };
 
     useEffect(() => {
-        // 1. Instant synchronous load
-        const initialList = loadLocalAppointments();
-        setAppointments(initialList);
-        try {
-            localStorage.setItem('siddha_portal_appointments', JSON.stringify(initialList));
-        } catch { }
+        syncAll();
 
-        // 2. Background remote sync
-        const fetchRemote = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('appointments')
-                    .select('*')
-                    .order('date', { ascending: false });
-
-                if (!error && data && data.length > 0) {
-                    setAppointments((prev) => {
-                        const map = new Map<string, Appointment>();
-                        for (const item of prev) {
-                            map.set(item.id, item);
-                        }
-                        for (const row of data) {
-                            const existing = map.get(String(row.id));
-                            map.set(String(row.id), {
-                                id: String(row.id),
-                                date: row.date,
-                                time: row.time,
-                                status: row.status || 'PENDING',
-                                symptoms: row.symptoms || 'General Health Consultation',
-                                user: existing?.user || {
-                                    name: 'Kabilesh',
-                                    phone: '+91 98765 43210'
-                                }
-                            });
-                        }
-                        const mergedList = Array.from(map.values());
-                        mergedList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-                        try {
-                            localStorage.setItem('siddha_portal_appointments', JSON.stringify(mergedList));
-                        } catch { }
-                        return mergedList;
-                    });
-                }
-            } catch { }
+        const onStorage = (e: StorageEvent) => {
+            if (e.key === 'siddha_appointments' || e.key === 'siddha_portal_appointments') {
+                syncAll();
+            }
         };
+        window.addEventListener('storage', onStorage);
 
-        fetchRemote();
-    }, [user]);
+        const onFocus = () => syncAll();
+        window.addEventListener('focus', onFocus);
+
+        const timer = setInterval(() => {
+            syncAll();
+        }, 3000);
+
+        return () => {
+            window.removeEventListener('storage', onStorage);
+            window.removeEventListener('focus', onFocus);
+            clearInterval(timer);
+        };
+    }, [syncAll]);
 
     const pendingCount = appointments.filter(a => a.status === 'PENDING').length;
     const confirmedCount = appointments.filter(a => a.status === 'CONFIRMED').length;
@@ -151,66 +185,108 @@ export default function PortalDashboard() {
     return (
         <div>
             {/* Header */}
-            <div className="mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-3"
-                    style={{ background: 'rgba(14,116,144,0.15)', color: '#22d3ee', border: '1px solid rgba(14,116,144,0.3)' }}>
-                    <span>🩺</span>
-                    <span>Siddha Clinical Practice Management</span>
-                </div>
-                <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>
-                    Welcome, <span className="gradient-text">{user?.name || 'Dr. Kavitha Rajan'}</span>
-                </h1>
-                <p className="text-sm" style={{ color: '#6b8f7e' }}>Today&apos;s patient appointment queue, clinical schedule, and consultation records.</p>
-            </div>
-
-            {/* Quick Metrics */}
-            <div className="grid sm:grid-cols-4 gap-4 mb-10">
-                {[
-                    { icon: '⏳', label: 'Pending Requests', value: String(pendingCount), color: '#facc15' },
-                    { icon: '📅', label: 'Confirmed Today', value: String(confirmedCount), color: '#34d399' },
-                    { icon: '✅', label: 'Completed Consultations', value: String(completedCount), color: '#38bdf8' },
-                    { icon: '👥', label: 'Total In Queue', value: String(appointments.length), color: '#a78bfa' },
-                ].map((s) => (
-                    <div key={s.label} className="glass-card p-5" style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
-                        <div className="flex items-center gap-3">
-                            <span className="text-2xl">{s.icon}</span>
-                            <div>
-                                <p className="text-2xl font-bold" style={{ color: '#f0fdf4' }}>{s.value}</p>
-                                <p className="text-xs" style={{ color: '#6b8f7e' }}>{s.label}</p>
-                            </div>
-                        </div>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+                <div>
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold mb-3"
+                        style={{ background: 'rgba(14,116,144,0.15)', color: '#22d3ee', border: '1px solid rgba(14,116,144,0.3)' }}>
+                        <span>🩺</span>
+                        <span>Siddha Clinical Practice Management</span>
                     </div>
-                ))}
-            </div>
-
-            {/* Today's Queue */}
-            <div className="glass-card p-6 mb-8" style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold" style={{ color: '#f0fdf4' }}>Recent Patient Queue</h2>
-                    <Link href="/portal/appointments" className="text-sm font-medium hover:text-cyan-300" style={{ color: '#22d3ee' }}>
-                        Manage Full Queue →
+                    <h1 className="font-playfair text-3xl font-bold mb-2" style={{ color: '#f0fdf4' }}>
+                        Welcome back, Dr. Kavitha Rajan
+                    </h1>
+                    <p className="text-sm" style={{ color: '#6b8f7e' }}>
+                        Senior Practitioner · Varmam & Musculoskeletal Therapy
+                    </p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={handleManualRefresh}
+                        className="px-4 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 transition-all cursor-pointer shadow-md"
+                        style={{
+                            background: 'rgba(14,116,144,0.2)',
+                            color: '#22d3ee',
+                            border: '1px solid rgba(14,116,144,0.4)',
+                        }}
+                    >
+                        <span className={`inline-block ${refreshing ? 'animate-spin' : ''}`}>🔄</span>
+                        <span>{refreshing ? 'Syncing...' : 'Refresh Queue'}</span>
+                    </button>
+                    <Link href="/portal/appointments" className="btn-primary text-xs py-2 px-4"
+                        style={{ background: 'linear-gradient(135deg, #0e7490, #155e75)' }}>
+                        Manage Appointments →
                     </Link>
                 </div>
+            </div>
+
+            {/* Stats Row */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                <div className="glass-card p-5" style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b8f7e' }}>Today&apos;s Queue</span>
+                        <span className="text-xl">📋</span>
+                    </div>
+                    <p className="font-playfair text-3xl font-bold" style={{ color: '#f0fdf4' }}>{appointments.length}</p>
+                    <p className="text-xs mt-1" style={{ color: '#22d3ee' }}>Patient consultations</p>
+                </div>
+
+                <div className="glass-card p-5" style={{ borderColor: 'rgba(234,179,8,0.2)' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b8f7e' }}>Pending Review</span>
+                        <span className="text-xl">⏳</span>
+                    </div>
+                    <p className="font-playfair text-3xl font-bold" style={{ color: '#eab308' }}>{pendingCount}</p>
+                    <p className="text-xs mt-1" style={{ color: '#6b8f7e' }}>Needs doctor confirmation</p>
+                </div>
+
+                <div className="glass-card p-5" style={{ borderColor: 'rgba(34,197,94,0.2)' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b8f7e' }}>Confirmed</span>
+                        <span className="text-xl">✅</span>
+                    </div>
+                    <p className="font-playfair text-3xl font-bold" style={{ color: '#22c55e' }}>{confirmedCount}</p>
+                    <p className="text-xs mt-1" style={{ color: '#6b8f7e' }}>Ready for consultation</p>
+                </div>
+
+                <div className="glass-card p-5" style={{ borderColor: 'rgba(59,130,246,0.2)' }}>
+                    <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#6b8f7e' }}>Completed</span>
+                        <span className="text-xl">🏥</span>
+                    </div>
+                    <p className="font-playfair text-3xl font-bold" style={{ color: '#3b82f6' }}>{completedCount}</p>
+                    <p className="text-xs mt-1" style={{ color: '#6b8f7e' }}>Past treatment logs</p>
+                </div>
+            </div>
+
+            {/* Upcoming Queue Section */}
+            <div className="glass-card p-6 mb-8" style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-lg font-semibold" style={{ color: '#f0fdf4' }}>Incoming Appointments</h2>
+                    <Link href="/portal/appointments" className="text-xs hover:underline font-semibold" style={{ color: '#22d3ee' }}>
+                        View All Queue →
+                    </Link>
+                </div>
+
                 <div className="space-y-3">
-                    {appointments.slice(0, 4).map((apt) => (
-                        <div key={apt.id} className="flex items-center justify-between p-4 rounded-xl"
+                    {appointments.slice(0, 5).map((apt) => (
+                        <div key={apt.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-xl gap-3"
                             style={{ background: 'rgba(14,116,144,0.06)', border: '1px solid rgba(14,116,144,0.15)' }}>
-                            <div className="flex items-center gap-4">
-                                <div className="text-center" style={{ minWidth: '60px' }}>
-                                    <p className="text-sm font-bold" style={{ color: '#22d3ee' }}>{apt.time}</p>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0"
+                                    style={{ background: 'rgba(14,116,144,0.2)', color: '#22d3ee' }}>
+                                    {(apt.user?.name || 'P')[0]}
                                 </div>
-                                <div className="w-px h-8" style={{ background: 'rgba(14,116,144,0.3)' }} />
                                 <div>
                                     <p className="font-semibold text-sm" style={{ color: '#f0fdf4' }}>{apt.user?.name || 'Patient'}</p>
-                                    <p className="text-xs" style={{ color: '#a7c4b8' }}>{apt.symptoms || 'General Consultation'}</p>
+                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>{apt.symptoms || 'General Consultation'}</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-4 justify-between sm:justify-end">
+                                <div className="text-right">
+                                    <p className="text-xs font-semibold" style={{ color: '#f0fdf4' }}>{apt.time}</p>
+                                    <p className="text-xs" style={{ color: '#6b8f7e' }}>{apt.date}</p>
+                                </div>
                                 <span className={`badge ${statusColors[apt.status] || 'badge-pending'}`}>{apt.status}</span>
-                                <Link href="/portal/appointments" className="text-xs px-3 py-1.5 rounded-lg transition-all hover:bg-cyan-900/30"
-                                    style={{ color: '#22d3ee', border: '1px solid rgba(14,116,144,0.3)' }}>
-                                    Review
-                                </Link>
                             </div>
                         </div>
                     ))}
@@ -218,18 +294,32 @@ export default function PortalDashboard() {
             </div>
 
             {/* Quick Actions */}
-            <div className="grid sm:grid-cols-3 gap-4">
-                {[
-                    { icon: '📋', title: 'Manage Appointments', desc: 'Accept, reject, and add prescription notes', href: '/portal/appointments' },
-                    { icon: '👥', title: 'Patient Records (EHR)', desc: 'View past medical histories and treatment logs', href: '/portal/patients' },
-                    { icon: '🕐', title: 'Set Clinic Availability', desc: 'Update consultation hours and slot durations', href: '/portal/availability' },
-                ].map((action) => (
-                    <Link key={action.title} href={action.href} className="glass-card p-6 group cursor-pointer" style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
-                        <span className="text-3xl mb-3 block group-hover:scale-110 transition-transform">{action.icon}</span>
-                        <h3 className="font-semibold mb-1" style={{ color: '#f0fdf4' }}>{action.title}</h3>
-                        <p className="text-sm" style={{ color: '#6b8f7e' }}>{action.desc}</p>
-                    </Link>
-                ))}
+            <div className="grid md:grid-cols-2 gap-4">
+                <Link href="/portal/appointments"
+                    className="glass-card p-6 hover:border-cyan-500/40 transition-all flex items-center gap-4 group"
+                    style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
+                        style={{ background: 'rgba(14,116,144,0.15)' }}>
+                        📅
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-sm mb-1" style={{ color: '#f0fdf4' }}>Manage Appointments</h3>
+                        <p className="text-xs" style={{ color: '#6b8f7e' }}>Accept, reschedule, or cancel patient bookings</p>
+                    </div>
+                </Link>
+
+                <Link href="/portal/patients"
+                    className="glass-card p-6 hover:border-cyan-500/40 transition-all flex items-center gap-4 group"
+                    style={{ borderColor: 'rgba(14,116,144,0.2)' }}>
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl group-hover:scale-110 transition-transform"
+                        style={{ background: 'rgba(14,116,144,0.15)' }}>
+                        📋
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-sm mb-1" style={{ color: '#f0fdf4' }}>EHR Patient Records</h3>
+                        <p className="text-xs" style={{ color: '#6b8f7e' }}>View complete medical histories and update treatments</p>
+                    </div>
+                </Link>
             </div>
         </div>
     );

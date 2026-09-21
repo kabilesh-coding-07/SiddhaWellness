@@ -115,18 +115,25 @@ export default function BookAppointmentPage() {
             // Supabase offline/unconfigured fallback
         }
 
-        // Save locally for instant patient dashboard reactivity
+        // 1. Save locally for instant patient dashboard reactivity
         try {
             const existing = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
             localStorage.setItem('siddha_appointments', JSON.stringify([newApt, ...existing]));
-        } catch {
-            // storage error
-        }
+        } catch { }
 
-        // Sync immediately into doctor clinical queue
+        // 2. Sync immediately into doctor clinical queue local storage
         try {
             const portalQueue = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
             localStorage.setItem('siddha_portal_appointments', JSON.stringify([newApt, ...portalQueue]));
+        } catch { }
+
+        // 3. Post to global server API route for cross-device / cross-session real-time sync
+        try {
+            await fetch('/api/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'create', appointment: newApt }),
+            });
         } catch { }
 
         setLoading(false);
