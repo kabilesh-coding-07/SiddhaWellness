@@ -65,31 +65,62 @@ const defaultDemoQueue: Appointment[] = [
     }
 ];
 
+function resolveStatus(prevStatus?: string, nextStatus?: string): string {
+    const priority: Record<string, number> = {
+        'CANCELLED': 4,
+        'REJECTED': 4,
+        'COMPLETED': 3,
+        'CONFIRMED': 2,
+        'PENDING': 1,
+    };
+    if (!nextStatus) return prevStatus || 'PENDING';
+    if (!prevStatus) return nextStatus;
+    const pPrev = priority[prevStatus] || 1;
+    const pNext = priority[nextStatus] || 1;
+    return pNext >= pPrev ? nextStatus : prevStatus;
+}
+
 export default function PortalDashboard() {
     const { profile: user } = useUser();
     const [appointments, setAppointments] = useState<Appointment[]>(defaultDemoQueue);
     const [refreshing, setRefreshing] = useState(false);
 
+    const getStatusOverrides = (): Record<string, string> => {
+        try {
+            return JSON.parse(localStorage.getItem('siddha_status_overrides') || '{}');
+        } catch {
+            return {};
+        }
+    };
+
     const mergeAppointments = useCallback((existingList: Appointment[], incoming: any[]): Appointment[] => {
+        const overrides = getStatusOverrides();
         const map = new Map<string, Appointment>();
 
         for (const a of defaultDemoQueue) {
-            map.set(String(a.id), a);
+            const finalStatus = overrides[a.id] || a.status;
+            map.set(String(a.id), { ...a, status: finalStatus });
         }
 
         for (const a of existingList) {
-            if (a && a.id) map.set(String(a.id), a);
+            if (a && a.id) {
+                const key = String(a.id);
+                const prev = map.get(key);
+                const finalStatus = overrides[key] || resolveStatus(prev?.status, a.status);
+                map.set(key, { ...a, status: finalStatus });
+            }
         }
 
         for (const a of incoming) {
             if (!a || !a.id) continue;
             const key = String(a.id);
             const prev = map.get(key);
+            const finalStatus = overrides[key] || resolveStatus(prev?.status, a.status);
             map.set(key, {
                 id: key,
                 date: a.date || prev?.date || new Date().toISOString().split('T')[0],
                 time: a.time || prev?.time || '10:00 AM',
-                status: a.status || prev?.status || 'PENDING',
+                status: finalStatus,
                 symptoms: a.symptoms || prev?.symptoms || 'General Health Consultation',
                 user: {
                     name: a.user?.name || prev?.user?.name || 'Kabilesh',
@@ -105,21 +136,23 @@ export default function PortalDashboard() {
     }, []);
 
     const syncAll = useCallback(async () => {
-        let current = [...appointments];
-
-        try {
-            const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
-            const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-            const localCombined = [...(Array.isArray(portalApts) ? portalApts : []), ...(Array.isArray(patientApts) ? patientApts : [])];
-            current = mergeAppointments(current, localCombined);
-        } catch { }
+        setAppointments((prev) => {
+            let current = [...prev];
+            try {
+                const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+                const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                const localCombined = [...(Array.isArray(portalApts) ? portalApts : []), ...(Array.isArray(patientApts) ? patientApts : [])];
+                current = mergeAppointments(current, localCombined);
+            } catch { }
+            return current;
+        });
 
         try {
             const res = await fetch('/api/appointments');
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && Array.isArray(data.appointments)) {
-                    current = mergeAppointments(current, data.appointments);
+                    setAppointments((prev) => mergeAppointments(prev, data.appointments));
                 }
             }
         } catch { }
@@ -131,15 +164,10 @@ export default function PortalDashboard() {
                 .order('date', { ascending: false });
 
             if (!error && data && data.length > 0) {
-                current = mergeAppointments(current, data);
+                setAppointments((prev) => mergeAppointments(prev, data));
             }
         } catch { }
-
-        setAppointments(current);
-        try {
-            localStorage.setItem('siddha_portal_appointments', JSON.stringify(current));
-        } catch { }
-    }, [appointments, mergeAppointments]);
+    }, [mergeAppointments]);
 
     const handleManualRefresh = async () => {
         setRefreshing(true);
@@ -150,23 +178,19 @@ export default function PortalDashboard() {
     useEffect(() => {
         syncAll();
 
-        const onStorage = (e: StorageEvent) => {
-            if (e.key === 'siddha_appointments' || e.key === 'siddha_portal_appointments') {
-                syncAll();
-            }
-        };
-        window.addEventListener('storage', onStorage);
-
-        const onFocus = () => syncAll();
-        window.addEventListener('focus', onFocus);
+        const onSync = () => syncAll();
+        window.addEventListener('storage', onSync);
+        window.addEventListener('siddha_sync', onSync);
+        window.addEventListener('focus', onSync);
 
         const timer = setInterval(() => {
             syncAll();
         }, 3000);
 
         return () => {
-            window.removeEventListener('storage', onStorage);
-            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('storage', onSync);
+            window.removeEventListener('siddha_sync', onSync);
+            window.removeEventListener('focus', onSync);
             clearInterval(timer);
         };
     }, [syncAll]);

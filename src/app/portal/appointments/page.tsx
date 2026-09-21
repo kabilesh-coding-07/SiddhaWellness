@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/providers/user-context';
 
@@ -72,6 +72,21 @@ const defaultDoctorAppointments: Appointment[] = [
     }
 ];
 
+function resolveStatus(prevStatus?: string, nextStatus?: string): string {
+    const priority: Record<string, number> = {
+        'CANCELLED': 4,
+        'REJECTED': 4,
+        'COMPLETED': 3,
+        'CONFIRMED': 2,
+        'PENDING': 1,
+    };
+    if (!nextStatus) return prevStatus || 'PENDING';
+    if (!prevStatus) return nextStatus;
+    const pPrev = priority[prevStatus] || 1;
+    const pNext = priority[nextStatus] || 1;
+    return pNext >= pPrev ? nextStatus : prevStatus;
+}
+
 export default function PortalAppointmentsPage() {
     const { profile: user } = useUser();
     const [appointments, setAppointments] = useState<Appointment[]>(defaultDoctorAppointments);
@@ -79,30 +94,46 @@ export default function PortalAppointmentsPage() {
     const [noteModal, setNoteModal] = useState<string | null>(null);
     const [noteText, setNoteText] = useState('');
     const [refreshing, setRefreshing] = useState(false);
+    const isUpdatingRef = useRef(false);
+
+    const getStatusOverrides = (): Record<string, string> => {
+        try {
+            return JSON.parse(localStorage.getItem('siddha_status_overrides') || '{}');
+        } catch {
+            return {};
+        }
+    };
 
     const mergeAppointments = useCallback((existingList: Appointment[], incoming: any[]): Appointment[] => {
+        const overrides = getStatusOverrides();
         const map = new Map<string, Appointment>();
 
         // 1. Base default doctor appointments
         for (const a of defaultDoctorAppointments) {
-            map.set(String(a.id), a);
+            const finalStatus = overrides[a.id] || a.status;
+            map.set(String(a.id), { ...a, status: finalStatus });
         }
 
-        // 2. Existing items
+        // 2. Existing items in current state
         for (const a of existingList) {
-            if (a && a.id) map.set(String(a.id), a);
+            if (!a || !a.id) continue;
+            const key = String(a.id);
+            const prev = map.get(key);
+            const finalStatus = overrides[key] || resolveStatus(prev?.status, a.status);
+            map.set(key, { ...a, status: finalStatus });
         }
 
-        // 3. Incoming items
+        // 3. Incoming items from storage / API / Supabase
         for (const a of incoming) {
             if (!a || !a.id) continue;
             const key = String(a.id);
             const prev = map.get(key);
+            const finalStatus = overrides[key] || resolveStatus(prev?.status, a.status);
             map.set(key, {
                 id: key,
                 date: a.date || prev?.date || new Date().toISOString().split('T')[0],
                 time: a.time || prev?.time || '10:00 AM',
-                status: a.status || prev?.status || 'PENDING',
+                status: finalStatus,
                 symptoms: a.symptoms || prev?.symptoms || 'General Health Consultation',
                 notes: a.notes !== undefined ? a.notes : (prev?.notes || ''),
                 doctor: a.doctor || prev?.doctor,
@@ -120,28 +151,31 @@ export default function PortalAppointmentsPage() {
     }, []);
 
     const syncAll = useCallback(async () => {
-        let current = [...appointments];
+        if (isUpdatingRef.current) return;
 
-        // 1. Read localStorage
-        try {
-            const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
-            const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-            const localCombined = [...(Array.isArray(portalApts) ? portalApts : []), ...(Array.isArray(patientApts) ? patientApts : [])];
-            current = mergeAppointments(current, localCombined);
-        } catch { }
+        setAppointments((prev) => {
+            let current = [...prev];
+            try {
+                const portalApts = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+                const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                const localCombined = [...(Array.isArray(portalApts) ? portalApts : []), ...(Array.isArray(patientApts) ? patientApts : [])];
+                current = mergeAppointments(current, localCombined);
+            } catch { }
+            return current;
+        });
 
-        // 2. Fetch from shared server API
+        // Async API fetch
         try {
             const res = await fetch('/api/appointments');
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && Array.isArray(data.appointments)) {
-                    current = mergeAppointments(current, data.appointments);
+                    setAppointments((prev) => mergeAppointments(prev, data.appointments));
                 }
             }
         } catch { }
 
-        // 3. Fetch from Supabase
+        // Async Supabase fetch
         try {
             const { data, error } = await supabase
                 .from('appointments')
@@ -149,15 +183,10 @@ export default function PortalAppointmentsPage() {
                 .order('date', { ascending: false });
 
             if (!error && data && data.length > 0) {
-                current = mergeAppointments(current, data);
+                setAppointments((prev) => mergeAppointments(prev, data));
             }
         } catch { }
-
-        setAppointments(current);
-        try {
-            localStorage.setItem('siddha_portal_appointments', JSON.stringify(current));
-        } catch { }
-    }, [appointments, mergeAppointments]);
+    }, [mergeAppointments]);
 
     const handleManualRefresh = async () => {
         setRefreshing(true);
@@ -166,34 +195,36 @@ export default function PortalAppointmentsPage() {
     };
 
     useEffect(() => {
-        // Initial sync
         syncAll();
 
-        // Listen to cross-tab storage changes
-        const onStorage = (e: StorageEvent) => {
-            if (e.key === 'siddha_appointments' || e.key === 'siddha_portal_appointments') {
-                syncAll();
-            }
-        };
+        const onStorage = () => syncAll();
         window.addEventListener('storage', onStorage);
+        window.addEventListener('siddha_sync', onStorage);
+        window.addEventListener('focus', onStorage);
 
-        // Sync when user focuses window
-        const onFocus = () => syncAll();
-        window.addEventListener('focus', onFocus);
-
-        // Polling interval every 3 seconds for active sync
         const timer = setInterval(() => {
             syncAll();
         }, 3000);
 
         return () => {
             window.removeEventListener('storage', onStorage);
-            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('siddha_sync', onStorage);
+            window.removeEventListener('focus', onStorage);
             clearInterval(timer);
         };
     }, [syncAll]);
 
     const updateStatus = async (id: string, status: string) => {
+        isUpdatingRef.current = true;
+
+        // 1. Save override permanently in localStorage
+        try {
+            const overrides = getStatusOverrides();
+            overrides[id] = status;
+            localStorage.setItem('siddha_status_overrides', JSON.stringify(overrides));
+        } catch { }
+
+        // 2. Optimistic instant state update
         setAppointments((prev) => {
             const updated = prev.map((a) => a.id === id ? { ...a, status } : a);
             try {
@@ -202,7 +233,7 @@ export default function PortalAppointmentsPage() {
             return updated;
         });
 
-        // Sync to patient storage
+        // 3. Update patient storage
         try {
             const patientApts = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
             if (Array.isArray(patientApts)) {
@@ -211,7 +242,12 @@ export default function PortalAppointmentsPage() {
             }
         } catch { }
 
-        // Sync to Server API
+        // 4. Notify all tabs
+        try {
+            window.dispatchEvent(new Event('siddha_sync'));
+        } catch { }
+
+        // 5. Post to Server API
         try {
             await fetch('/api/appointments', {
                 method: 'POST',
@@ -220,13 +256,17 @@ export default function PortalAppointmentsPage() {
             });
         } catch { }
 
-        // Sync to Supabase
+        // 6. Post to Supabase
         try {
             await supabase
                 .from('appointments')
                 .update({ status })
                 .eq('id', id);
         } catch { }
+
+        setTimeout(() => {
+            isUpdatingRef.current = false;
+        }, 500);
     };
 
     const saveNote = async (id: string) => {
@@ -244,6 +284,10 @@ export default function PortalAppointmentsPage() {
                 const updatedPatients = patientApts.map((a: any) => a.id === id ? { ...a, notes: noteText } : a);
                 localStorage.setItem('siddha_appointments', JSON.stringify(updatedPatients));
             }
+        } catch { }
+
+        try {
+            window.dispatchEvent(new Event('siddha_sync'));
         } catch { }
 
         try {

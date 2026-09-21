@@ -14,108 +14,132 @@ interface Appointment {
     doctor?: { user: { name: string }; specialty: string };
 }
 
+const defaultDemoAppointments: Appointment[] = [
+    {
+        id: 'apt_kabilesh_1',
+        date: '2026-10-01',
+        time: '03:30 PM',
+        status: 'PENDING',
+        symptoms: 'General health assessment & Siddha consultation',
+        notes: '',
+        doctor: { user: { name: 'Dr. Kavitha Rajan' }, specialty: 'Varmam & Pain Management' }
+    },
+    {
+        id: 'apt_kabilesh_2',
+        date: '2026-09-30',
+        time: '06:00 PM',
+        status: 'CONFIRMED',
+        symptoms: 'Digestive balance & wellness check',
+        notes: 'Confirmed appointment. Prescribed preliminary herbal consultation.',
+        doctor: { user: { name: 'Dr. Kavitha Rajan' }, specialty: 'Varmam & Pain Management' }
+    },
+    {
+        id: 'apt_kabilesh_3',
+        date: '2026-09-22',
+        time: '04:30 PM',
+        status: 'PENDING',
+        symptoms: 'Follow-up on Siddha dietary guidelines',
+        notes: '',
+        doctor: { user: { name: 'Dr. Kavitha Rajan' }, specialty: 'Varmam & Pain Management' }
+    }
+];
+
+function resolveStatus(prevStatus?: string, nextStatus?: string): string {
+    const priority: Record<string, number> = {
+        'CANCELLED': 4,
+        'REJECTED': 4,
+        'COMPLETED': 3,
+        'CONFIRMED': 2,
+        'PENDING': 1,
+    };
+    if (!nextStatus) return prevStatus || 'PENDING';
+    if (!prevStatus) return nextStatus;
+    const pPrev = priority[prevStatus] || 1;
+    const pNext = priority[nextStatus] || 1;
+    return pNext >= pPrev ? nextStatus : prevStatus;
+}
+
 export default function AppointmentsPage() {
     const { t } = useLanguage();
     const [appointments, setAppointments] = useState<Appointment[]>([]);
     const [filter, setFilter] = useState('ALL');
 
-    const defaultDemoAppointments: Appointment[] = [
-        {
-            id: 'apt_kabilesh_1',
-            date: '2026-10-01',
-            time: '03:30 PM',
-            status: 'PENDING',
-            symptoms: 'General health assessment & Siddha consultation',
-            notes: '',
-            doctor: { user: { name: 'Dr. Kavitha Rajan' }, specialty: 'Varmam & Pain Management' }
-        },
-        {
-            id: 'apt_kabilesh_2',
-            date: '2026-09-30',
-            time: '06:00 PM',
-            status: 'CONFIRMED',
-            symptoms: 'Digestive balance & wellness check',
-            notes: 'Confirmed appointment. Prescribed preliminary herbal consultation.',
-            doctor: { user: { name: 'Dr. Kavitha Rajan' }, specialty: 'Varmam & Pain Management' }
-        },
-        {
-            id: 'apt_kabilesh_3',
-            date: '2026-09-22',
-            time: '04:30 PM',
-            status: 'PENDING',
-            symptoms: 'Follow-up on Siddha dietary guidelines',
-            notes: '',
-            doctor: { user: { name: 'Dr. Kavitha Rajan' }, specialty: 'Varmam & Pain Management' }
+    const getStatusOverrides = (): Record<string, string> => {
+        try {
+            return JSON.parse(localStorage.getItem('siddha_status_overrides') || '{}');
+        } catch {
+            return {};
         }
-    ];
-
-    const cancelAppointment = async (id: string) => {
-        try {
-            await supabase
-                .from('appointments')
-                .update({ status: 'CANCELLED' })
-                .eq('id', id);
-        } catch { }
-
-        try {
-            await fetch('/api/appointments', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'updateStatus', id, status: 'CANCELLED' }),
-            });
-        } catch { }
-
-        // Update state and local storage
-        setAppointments((prev) => {
-            const updated = prev.map((a) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
-            try {
-                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-                const updatedLocal = local.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
-                localStorage.setItem('siddha_appointments', JSON.stringify(updatedLocal));
-            } catch { }
-
-            try {
-                const portal = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
-                const updatedPortal = portal.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
-                localStorage.setItem('siddha_portal_appointments', JSON.stringify(updatedPortal));
-            } catch { }
-
-            return updated;
-        });
     };
 
-    const loadAppointments = useCallback(async () => {
-        const appointmentMap = new Map<string, Appointment>();
+    const mergeAppointments = useCallback((existingList: Appointment[], incoming: any[]): Appointment[] => {
+        const overrides = getStatusOverrides();
+        const map = new Map<string, Appointment>();
 
         // 1. Baseline
         for (const item of defaultDemoAppointments) {
-            appointmentMap.set(item.id, item);
+            const finalStatus = overrides[item.id] || item.status;
+            map.set(item.id, { ...item, status: finalStatus });
         }
 
-        // 2. Local storage
-        try {
-            const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-            if (Array.isArray(local)) {
-                for (const item of local) {
-                    if (item && item.id) appointmentMap.set(String(item.id), item);
-                }
-            }
-        } catch { }
+        // 2. Existing items
+        for (const a of existingList) {
+            if (!a || !a.id) continue;
+            const key = String(a.id);
+            const prev = map.get(key);
+            const finalStatus = overrides[key] || resolveStatus(prev?.status, a.status);
+            map.set(key, { ...a, status: finalStatus });
+        }
 
-        // 3. Server API
+        // 3. Incoming
+        for (const a of incoming) {
+            if (!a || !a.id) continue;
+            const key = String(a.id);
+            const prev = map.get(key);
+            const finalStatus = overrides[key] || resolveStatus(prev?.status, a.status);
+            map.set(key, {
+                id: key,
+                date: a.date || prev?.date || new Date().toISOString().split('T')[0],
+                time: a.time || prev?.time || '10:00 AM',
+                status: finalStatus,
+                symptoms: a.symptoms || prev?.symptoms || 'General Consultation',
+                notes: a.notes !== undefined ? a.notes : (prev?.notes || ''),
+                doctor: a.doctor || prev?.doctor || {
+                    specialty: 'Varmam & Pain Management',
+                    user: { name: 'Dr. Kavitha Rajan' }
+                }
+            });
+        }
+
+        const list = Array.from(map.values());
+        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return list;
+    }, []);
+
+    const loadAppointments = useCallback(async () => {
+        setAppointments((prev) => {
+            let current = [...prev];
+            try {
+                const local = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                const portal = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+                const localCombined = [...(Array.isArray(local) ? local : []), ...(Array.isArray(portal) ? portal : [])];
+                current = mergeAppointments(current, localCombined);
+            } catch { }
+            return current;
+        });
+
+        // Server API
         try {
             const res = await fetch('/api/appointments');
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && Array.isArray(data.appointments)) {
-                    for (const item of data.appointments) {
-                        if (item && item.id) appointmentMap.set(String(item.id), item);
-                    }
+                    setAppointments((prev) => mergeAppointments(prev, data.appointments));
                 }
             }
         } catch { }
 
-        // 4. Supabase
+        // Supabase
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
@@ -126,41 +150,76 @@ export default function AppointmentsPage() {
                     .order('date', { ascending: false });
 
                 if (!error && data && data.length > 0) {
-                    for (const item of data) {
-                        if (item && item.id) appointmentMap.set(String(item.id), item);
-                    }
+                    setAppointments((prev) => mergeAppointments(prev, data));
                 }
             }
         } catch { }
-
-        const list = Array.from(appointmentMap.values());
-        list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        setAppointments(list);
-    }, []);
+    }, [mergeAppointments]);
 
     useEffect(() => {
         loadAppointments();
 
-        const onStorage = (e: StorageEvent) => {
-            if (e.key === 'siddha_appointments' || e.key === 'siddha_portal_appointments') {
-                loadAppointments();
-            }
-        };
-        window.addEventListener('storage', onStorage);
-
-        const onFocus = () => loadAppointments();
-        window.addEventListener('focus', onFocus);
+        const onSync = () => loadAppointments();
+        window.addEventListener('storage', onSync);
+        window.addEventListener('siddha_sync', onSync);
+        window.addEventListener('focus', onSync);
 
         const timer = setInterval(() => {
             loadAppointments();
         }, 3000);
 
         return () => {
-            window.removeEventListener('storage', onStorage);
-            window.removeEventListener('focus', onFocus);
+            window.removeEventListener('storage', onSync);
+            window.removeEventListener('siddha_sync', onSync);
+            window.removeEventListener('focus', onSync);
             clearInterval(timer);
         };
     }, [loadAppointments]);
+
+    const cancelAppointment = async (id: string) => {
+        // Save override in localStorage
+        try {
+            const overrides = getStatusOverrides();
+            overrides[id] = 'CANCELLED';
+            localStorage.setItem('siddha_status_overrides', JSON.stringify(overrides));
+        } catch { }
+
+        // Optimistic state update
+        setAppointments((prev) => {
+            const updated = prev.map((a) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
+            try {
+                localStorage.setItem('siddha_appointments', JSON.stringify(updated));
+            } catch { }
+            return updated;
+        });
+
+        try {
+            const portal = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+            if (Array.isArray(portal)) {
+                const updatedPortal = portal.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
+                localStorage.setItem('siddha_portal_appointments', JSON.stringify(updatedPortal));
+            }
+        } catch { }
+
+        try {
+            window.dispatchEvent(new Event('siddha_sync'));
+        } catch { }
+
+        try {
+            await fetch('/api/appointments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'updateStatus', id, status: 'CANCELLED' }),
+            });
+        } catch { }
+
+        try {
+            await supabase
+                .from('appointments')
+                .update({ status: 'CANCELLED' })
+                .eq('id', id);
+        } catch { }
+    };
 
     const statusColors: Record<string, string> = {
         PENDING: 'badge-pending',
