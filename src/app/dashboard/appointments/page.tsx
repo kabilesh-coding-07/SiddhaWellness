@@ -57,6 +57,13 @@ export default function AppointmentsPage() {
                 const updatedLocal = local.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
                 localStorage.setItem('siddha_appointments', JSON.stringify(updatedLocal));
             } catch { }
+
+            try {
+                const portal = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+                const updatedPortal = portal.map((a: any) => a.id === id ? { ...a, status: 'CANCELLED' } : a);
+                localStorage.setItem('siddha_portal_appointments', JSON.stringify(updatedPortal));
+            } catch { }
+
             return updated;
         });
     };

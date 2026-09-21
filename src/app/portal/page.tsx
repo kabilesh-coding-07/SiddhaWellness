@@ -47,66 +47,78 @@ export default function PortalDashboard() {
 
     useEffect(() => {
         const loadDoctorData = async () => {
-            let loaded: Appointment[] = [];
+            // 1. Fetch from Supabase
+            let supabaseAppts: Appointment[] = [];
             try {
-                if (user && user.id !== 'demo_doc_1') {
-                    const { data: doctor } = await supabase
-                        .from('doctors')
-                        .select('id')
-                        .eq('userId', user.id)
-                        .single();
+                const { data, error } = await supabase
+                    .from('appointments')
+                    .select('id, date, time, status, symptoms, doctorId, user:users(name, email, phone)')
+                    .order('date', { ascending: false });
 
-                    if (doctor) {
-                        const { data: appts } = await supabase
-                            .from('appointments')
-                            .select('*, user:users!appointments_userId_fkey(name, email, phone)')
-                            .eq('doctorId', doctor.id)
-                            .order('date', { ascending: false });
-
-                        if (appts && appts.length > 0) {
-                            loaded = appts;
+                if (!error && data && data.length > 0) {
+                    supabaseAppts = data.map((a: any) => ({
+                        id: String(a.id),
+                        date: a.date,
+                        time: a.time,
+                        status: a.status || 'PENDING',
+                        symptoms: a.symptoms || 'General Health Consultation',
+                        user: {
+                            name: a.user?.name || (a.user?.email ? a.user.email.split('@')[0] : 'Kabilesh'),
+                            phone: a.user?.phone || '+91 98765 43210'
                         }
-                    }
+                    }));
                 }
             } catch { }
 
-            // Load persistent doctor portal queue from local storage
+            // 2. Read from patient local storage
+            let localPatientAppts: Appointment[] = [];
             try {
-                const local = JSON.parse(localStorage.getItem('siddha_portal_appointments') || 'null');
-                if (Array.isArray(local) && local.length > 0) {
-                    loaded = local;
+                const stored = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
+                if (Array.isArray(stored)) {
+                    localPatientAppts = stored.map((a: any) => ({
+                        id: String(a.id),
+                        date: a.date,
+                        time: a.time,
+                        status: a.status || 'PENDING',
+                        symptoms: a.symptoms || 'General Health Consultation',
+                        user: {
+                            name: a.user?.name || 'Kabilesh',
+                            phone: a.user?.phone || '+91 98765 43210'
+                        }
+                    }));
                 }
             } catch { }
 
-            // Also check for any appointments booked by patients
+            // 3. Read from portal local storage
+            let localPortalAppts: Appointment[] = [];
             try {
-                const patientBookings = JSON.parse(localStorage.getItem('siddha_appointments') || '[]');
-                if (Array.isArray(patientBookings) && patientBookings.length > 0) {
-                    const existingIds = new Set(loaded.map((a) => a.id));
-                    const newBookings = patientBookings
-                        .filter((pb: any) => !existingIds.has(pb.id))
-                        .map((pb: any) => ({
-                            id: pb.id,
-                            date: pb.date,
-                            time: pb.time,
-                            status: pb.status || 'PENDING',
-                            symptoms: pb.symptoms || 'General Consultation',
-                            user: { name: pb.doctor?.user?.name ? 'Patient (Self-Booked)' : 'Patient', phone: '+91 98765 43210' }
-                        }));
-                    if (newBookings.length > 0) {
-                        loaded = [...newBookings, ...loaded];
-                    }
+                const stored = JSON.parse(localStorage.getItem('siddha_portal_appointments') || '[]');
+                if (Array.isArray(stored)) {
+                    localPortalAppts = stored;
                 }
             } catch { }
 
-            if (loaded.length === 0) {
-                setAppointments(defaultDemoQueue);
-                try {
-                    localStorage.setItem('siddha_portal_appointments', JSON.stringify(defaultDemoQueue));
-                } catch { }
-            } else {
-                setAppointments(loaded);
+            // 4. Merge all together: Default demo items -> Portal items -> Patient items -> Supabase items
+            const appointmentMap = new Map<string, Appointment>();
+
+            for (const a of defaultDemoQueue) {
+                appointmentMap.set(a.id, a);
             }
+            for (const a of localPortalAppts) {
+                appointmentMap.set(a.id, a);
+            }
+            for (const a of localPatientAppts) {
+                appointmentMap.set(a.id, a);
+            }
+            for (const a of supabaseAppts) {
+                appointmentMap.set(a.id, a);
+            }
+
+            const merged = Array.from(appointmentMap.values());
+            setAppointments(merged);
+            try {
+                localStorage.setItem('siddha_portal_appointments', JSON.stringify(merged));
+            } catch { }
         };
 
         loadDoctorData();
