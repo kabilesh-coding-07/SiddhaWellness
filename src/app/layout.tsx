@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
 import Providers from "@/components/Providers";
+import AppShell from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "SiddhaWellness.in — Ancient Siddha Medicine | Holistic Healing",
@@ -17,13 +16,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">
+      <body className="antialiased bg-[#0a0f0d] text-[#f0fdf4]">
         <Providers>
-          <Navbar />
-          <main className="min-h-screen pt-20">
+          <AppShell>
             {children}
-          </main>
-          <Footer />
+          </AppShell>
         </Providers>
       </body>
     </html>

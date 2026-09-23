@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -19,7 +19,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     const { profile: user, signOut } = useUser();
     const [sidebarOpen, setSidebarOpen] = useState(false);
 
-    // If on /portal/login, render without sidebar layout
+    // If on /portal/login, render without clinical sidebar layout
     if (pathname === '/portal/login') {
         return <>{children}</>;
     }
@@ -38,29 +38,41 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     };
 
     return (
-        <div className="min-h-screen flex" style={{ background: '#0a0f0d' }}>
+        <div className="min-h-screen flex bg-[#0a0f0d] text-[#f0fdf4]">
             {/* Clinical Sidebar */}
-            <aside className={`fixed inset-y-0 left-0 z-40 w-64 pt-20 transform transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
-                style={{ background: '#0d1411', borderRight: '1px solid rgba(14,116,144,0.2)' }}>
+            <aside className={`fixed inset-y-0 left-0 z-40 w-64 bg-[#0d1411] border-r border-cyan-950/40 flex flex-col justify-between transform transition-transform duration-300 md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                 <div className="p-6">
+                    {/* Brand Header */}
+                    <div className="flex items-center gap-3 mb-6 pb-4 border-b border-cyan-950/40">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl shadow-md"
+                            style={{ background: 'linear-gradient(135deg, #0891b2, #0e7490)', color: 'white' }}>
+                            🩺
+                        </div>
+                        <div>
+                            <span className="font-bold text-base tracking-tight" style={{ color: '#22d3ee' }}>Siddha Clinical</span>
+                            <p className="text-[11px] font-medium" style={{ color: '#6b8f7e' }}>Practice Workstation</p>
+                        </div>
+                    </div>
+
                     {/* Doctor Header Badge */}
-                    <div className="glass-card p-4 mb-6" style={{ borderColor: 'rgba(14,116,144,0.3)', background: 'rgba(14,116,144,0.08)' }}>
+                    <div className="glass-card p-3.5 mb-6" style={{ borderColor: 'rgba(14,116,144,0.3)', background: 'rgba(14,116,144,0.08)' }}>
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold"
+                            <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
                                 style={{ background: 'linear-gradient(135deg, #0e7490, #155e75)', color: 'white' }}>
                                 {activeUser.name.charAt(0)}
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>{activeUser.name}</p>
+                            <div className="overflow-hidden">
+                                <p className="text-xs font-semibold truncate" style={{ color: '#f0fdf4' }}>{activeUser.name}</p>
                                 <div className="flex items-center gap-1.5 mt-0.5">
-                                    <span className="pulse-dot" style={{ width: 6, height: 6, background: '#22d3ee' }} />
-                                    <span className="text-xs font-medium" style={{ color: '#22d3ee' }}>Clinical Workstation</span>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                    <span className="text-[10px] font-medium" style={{ color: '#22d3ee' }}>Doctor Station Active</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <nav className="space-y-1">
+                    {/* Navigation */}
+                    <nav className="space-y-1.5">
                         {portalSidebarLinks.map((link) => {
                             const isActive = link.href === '/portal'
                                 ? pathname === '/portal'
@@ -71,39 +83,68 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                                     className={`sidebar-link ${isActive ? 'active' : ''}`}
                                     style={isActive ? { borderColor: 'rgba(14,116,144,0.4)', color: '#22d3ee', background: 'rgba(14,116,144,0.12)' } : undefined}>
                                     <span>{link.icon}</span>
-                                    <span className="text-sm">{link.label}</span>
+                                    <span className="text-xs font-medium">{link.label}</span>
                                 </Link>
                             );
                         })}
                     </nav>
+                </div>
 
-                    <div className="mt-8 pt-6 space-y-2" style={{ borderTop: '1px solid rgba(14,116,144,0.15)' }}>
-                        <Link href="/" target="_blank" className="sidebar-link hover:text-emerald-400">
-                            <span>🌐</span>
-                            <span className="text-sm">View Public Site ↗</span>
-                        </Link>
-                        <button onClick={handleLogout} className="sidebar-link w-full text-left hover:text-red-400">
-                            <span>🚪</span>
-                            <span className="text-sm">Log out of Portal</span>
-                        </button>
-                    </div>
+                {/* Bottom Sidebar Actions */}
+                <div className="p-6 border-t border-cyan-950/40 space-y-2">
+                    <Link href="/" target="_blank" className="sidebar-link hover:text-emerald-400 py-2">
+                        <span>🌐</span>
+                        <span className="text-xs">View Public Site ↗</span>
+                    </Link>
+                    <button onClick={handleLogout} className="sidebar-link w-full text-left hover:text-red-400 py-2 cursor-pointer">
+                        <span>🚪</span>
+                        <span className="text-xs">Log out of Portal</span>
+                    </button>
                 </div>
             </aside>
 
-            {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setSidebarOpen(false)} />}
+            {/* Mobile overlay */}
+            {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/60 md:hidden" onClick={() => setSidebarOpen(false)} />}
 
-            {/* Main Clinical Content */}
-            <div className="flex-1 md:ml-64">
-                <div className="md:hidden fixed top-20 left-0 right-0 z-20 p-4"
-                    style={{ background: 'rgba(10,15,13,0.95)', borderBottom: '1px solid rgba(14,116,144,0.2)' }}>
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="flex items-center gap-2 text-sm" style={{ color: '#22d3ee' }}>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                        Clinical Menu
-                    </button>
-                </div>
-                <div className="p-6 md:p-10 mt-16 md:mt-0">{children}</div>
+            {/* Main Clinical Content Area */}
+            <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+                {/* Clean Top Bar */}
+                <header className="sticky top-0 z-20 bg-[#0d1411]/90 backdrop-blur-md border-b border-cyan-950/40 px-6 py-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className="md:hidden p-2 rounded-lg text-cyan-400 hover:bg-cyan-950/40"
+                        >
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                        <div className="hidden sm:block">
+                            <span className="text-xs font-semibold" style={{ color: '#22d3ee' }}>🏥 Clinical Practice Management</span>
+                            <span className="text-xs text-gray-500 mx-2">·</span>
+                            <span className="text-xs text-gray-400">Dr. Kavitha Rajan (Varmam Specialist)</span>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Link href="/portal/appointments" className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                            style={{ background: 'rgba(14,116,144,0.15)', color: '#22d3ee', border: '1px solid rgba(14,116,144,0.3)' }}>
+                            <span>📋</span>
+                            <span>Live Queue</span>
+                        </Link>
+                        <button
+                            onClick={handleLogout}
+                            className="text-xs px-3 py-1.5 rounded-lg text-red-400 hover:bg-red-950/30 border border-red-900/30 cursor-pointer"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                </header>
+
+                {/* Page View Body */}
+                <main className="flex-1 p-6 md:p-10 max-w-7xl w-full">
+                    {children}
+                </main>
             </div>
         </div>
     );
