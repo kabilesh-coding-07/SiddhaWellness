@@ -12,6 +12,7 @@ const sidebarLinks = [
 ];
 
 import { useUser } from '@/providers/user-context';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
@@ -21,8 +22,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     const activeUser = user || {
         id: 'patient_demo',
-        name: 'Patient Guest',
-        email: 'guest@siddhawellness.in',
+        name: 'Kabilesh',
+        email: 'kabileshcoding07@gmail.com',
         role: 'USER',
         phone: '+91 98765 43210'
     };
@@ -44,9 +45,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                                 style={{ background: 'rgba(4,120,87,0.2)', color: '#34d399' }}>
                                 {activeUser.name.charAt(0)}
                             </div>
-                            <div>
-                                <p className="text-sm font-semibold" style={{ color: '#f0fdf4' }}>{activeUser.name}</p>
-                                <p className="text-xs" style={{ color: '#6b8f7e' }}>{activeUser.email}</p>
+                            <div className="overflow-hidden">
+                                <p className="text-sm font-semibold truncate" style={{ color: '#f0fdf4' }}>{activeUser.name}</p>
+                                <p className="text-xs truncate" style={{ color: '#6b8f7e' }}>{activeUser.email}</p>
                             </div>
                         </div>
                     </div>
@@ -63,7 +64,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </nav>
 
                     <div className="mt-8 pt-6" style={{ borderTop: '1px solid rgba(4,120,87,0.15)' }}>
-                        <button onClick={handleLogout} className="sidebar-link w-full text-left hover:text-red-400">
+                        <button onClick={handleLogout} className="sidebar-link w-full text-left hover:text-red-400 cursor-pointer">
                             <span>🚪</span>
                             <span className="text-sm">Logout</span>
                         </button>
@@ -78,20 +79,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             {/* Main Content */}
             <div className="flex-1 md:ml-64">
-                {/* Mobile header */}
-                <div className="md:hidden fixed top-20 left-0 right-0 z-20 p-4"
-                    style={{ background: 'rgba(10,15,13,0.95)', borderBottom: '1px solid rgba(4,120,87,0.15)' }}>
-                    <button onClick={() => setSidebarOpen(!sidebarOpen)} className="flex items-center gap-2 text-sm" style={{ color: '#a7c4b8' }}>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                        </svg>
-                        Menu
-                    </button>
+                {/* Top Bar with Notification Bell */}
+                <div className="pt-20 px-6 md:px-10 pb-0 flex items-center justify-between">
+                    <div className="hidden sm:flex items-center gap-2 text-xs" style={{ color: '#6b8f7e' }}>
+                        <span>🌿 Siddha Patient Health Portal</span>
+                    </div>
+                    <div className="ml-auto flex items-center gap-3">
+                        <NotificationBell />
+                    </div>
                 </div>
 
-                <div className="p-6 md:p-10 mt-16 md:mt-0">
-                    {children}
+                {/* Mobile header button */}
+                <div className="md:hidden fixed top-20 left-0 right-0 z-20 p-4"
+                    style={{ background: 'rgba(10,15,13,0.95)', borderBottom: '1px solid rgba(4,120,87,0.15)' }}>
+                    <div className="flex items-center justify-between">
+                        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="flex items-center gap-2 text-sm" style={{ color: '#a7c4b8' }}>
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                            Menu
+                        </button>
+                        <NotificationBell />
+                    </div>
                 </div>
+
+                <div className="p-6 md:p-10">{children}</div>
             </div>
         </div>
     );

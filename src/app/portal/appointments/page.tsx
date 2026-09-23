@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -263,6 +263,34 @@ export default function PortalAppointmentsPage() {
                 .update({ status })
                 .eq('id', id);
         } catch { }
+
+        // 7. Dispatch SMS & Email Notification to Patient
+        const targetApt = appointments.find(a => a.id === id);
+        const notifType = status === 'CONFIRMED'
+            ? 'APPOINTMENT_CONFIRMED'
+            : (status === 'REJECTED' || status === 'CANCELLED')
+            ? 'APPOINTMENT_CANCELLED'
+            : null;
+
+        if (notifType && targetApt) {
+            try {
+                await fetch('/api/notifications/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: notifType,
+                        patientName: targetApt.user?.name || 'Kabilesh',
+                        patientEmail: targetApt.user?.email || 'kabileshcoding07@gmail.com',
+                        patientPhone: targetApt.user?.phone || '+91 98765 43210',
+                        doctorName: 'Dr. Kavitha Rajan',
+                        doctorSpecialty: 'Varmam & Pain Management',
+                        date: targetApt.date,
+                        time: targetApt.time,
+                        notes: targetApt.notes || '',
+                    }),
+                });
+            } catch { }
+        }
 
         setTimeout(() => {
             isUpdatingRef.current = false;

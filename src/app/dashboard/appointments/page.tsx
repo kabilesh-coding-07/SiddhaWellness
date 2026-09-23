@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 import { useLanguage } from '@/i18n';
@@ -219,6 +219,28 @@ export default function AppointmentsPage() {
                 .update({ status: 'CANCELLED' })
                 .eq('id', id);
         } catch { }
+
+        // Dispatch Cancellation Notification (SMS & Email)
+        const targetApt = appointments.find(a => a.id === id);
+        if (targetApt) {
+            try {
+                await fetch('/api/notifications/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        type: 'APPOINTMENT_CANCELLED',
+                        patientName: 'Kabilesh',
+                        patientEmail: 'kabileshcoding07@gmail.com',
+                        patientPhone: '+91 98765 43210',
+                        doctorName: targetApt.doctor?.user?.name || 'Dr. Kavitha Rajan',
+                        doctorSpecialty: targetApt.doctor?.specialty || 'Siddha Specialist',
+                        date: targetApt.date,
+                        time: targetApt.time,
+                        notes: 'Appointment cancelled by patient.',
+                    }),
+                });
+            } catch { }
+        }
     };
 
     const statusColors: Record<string, string> = {

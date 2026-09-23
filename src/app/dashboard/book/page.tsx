@@ -136,6 +136,26 @@ export default function BookAppointmentPage() {
             });
         } catch { }
 
+        // 4. Dispatch Booking Received Notification (SMS & Email)
+        try {
+            await fetch('/api/notifications/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    type: 'BOOKING_RECEIVED',
+                    patientName: newApt.user?.name || 'Kabilesh',
+                    patientEmail: newApt.user?.email || 'kabileshcoding07@gmail.com',
+                    patientPhone: newApt.user?.phone || '+91 98765 43210',
+                    doctorName: newApt.doctor?.user?.name || 'Dr. Kavitha Rajan',
+                    doctorSpecialty: newApt.doctor?.specialty || 'Siddha Specialist',
+                    date: newApt.date,
+                    time: newApt.time,
+                    notes: newApt.symptoms || '',
+                }),
+            });
+            window.dispatchEvent(new Event('siddha_sync'));
+        } catch { }
+
         setLoading(false);
         setSuccess(true);
         setTimeout(() => router.push('/dashboard/appointments'), 1500);
